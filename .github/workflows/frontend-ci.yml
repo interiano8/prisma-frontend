@@ -1,0 +1,96 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  quality:
+    name: Typecheck · Build · Unit (coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # Coverage con thresholds al 80% en vitest.config.ts; falla si baja.
+      - name: Unit tests + coverage
+        run: pnpm test:cov
+
+  e2e:
+    name: E2E (Playwright · backend real + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prisma
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      E2E_BACKEND_URL: ${{ vars.E2E_BACKEND_URL || 'http://localhost:5009' }}
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/prisma
+      E2E_USER: prueba
+      E2E_PASSWORD: '1234'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build renderer (para electron-vite preview / vite preview)
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # El backend Nest vive en el repo hermano; si está disponible como servicio
+      # externo (E2E_BACKEND_URL) se usa tal cual. En el mismo runner se debe
+      # provisionar el backend y aplicarle las migraciones antes de correr.
+      - name: Seed datos de E2E (usuario + bomba)
+        run: node scripts/seed-e2e.mjs
+
+      - name: Run E2E
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
