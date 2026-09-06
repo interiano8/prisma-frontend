@@ -16,8 +16,10 @@ export interface StoreConfig {
   rtn: string
   phone: string
   email: string
-  address: string
-  urlLeal: string
+address: string
+  address1?: string
+  address2?: string
+  address3?: string
   rtf?: string
   noConsumidorFinal?: string
   casaMatriz?: string
@@ -84,6 +86,8 @@ export interface PaymentMethod {
   code: string
   description: string
   categoria: string
+  moneda: string
+  generaCambio: boolean
   facturaContado: boolean
   facturaCredito: boolean
   salidaCombustible: boolean
@@ -150,6 +154,10 @@ export interface CartPayment {
   amount: number | string
   reference?: string
   requiereReferencia?: boolean
+  moneda?: string
+  tasaCambio?: number
+  montoIngresado?: number
+  generaCambio?: boolean
 }
 
 export interface CreateInvoicePayload {
@@ -183,6 +191,8 @@ export interface InvoiceCreateResult {
   endingNo?: string | null
   fechaVence?: string | null
   createdAt: string
-  sorteoTickets?: any[]
+  campanaTickets?: any[]
   lealReprintMessage?: string
+  seriesRemaining?: number
+  seriesRemainingDays?: number
 }

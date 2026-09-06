@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useApp } from '../store'
+import { fmtServerDate, localDateServer } from '../lib/server-tz'
 import {
   Clock,
   Play,
@@ -18,24 +19,11 @@ import {
 } from 'lucide-react'
 
 function localDate(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return localDateServer(iso)
 }
 
 function fmtFecha(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  return d.toLocaleString('es-HN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return fmtServerDate(iso)
 }
 
 function fmtQty(n: number | string | null | undefined): string {

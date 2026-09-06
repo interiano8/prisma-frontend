@@ -1,4 +1,4 @@
-import { useApp } from './store'
+import { useApp, type View } from './store'
 import { useState, useEffect } from 'react'
 import Login from './screens/Login'
 import PosScreen from './screens/PosScreen'
@@ -10,8 +10,9 @@ import { LayoutGrid, Clock, Settings, LogOut, Sun, Moon, X, Users, Gift, User, W
 import PrismaLogo from './components/PrismaLogo'
 import LealScreen from './screens/LealScreen'
 import DocumentsScreen from './screens/DocumentsScreen'
+import PendientesScreen from './screens/PendientesScreen'
 
-const NAV: { id: 'pos' | 'customers' | 'shift' | 'documents' | 'config' | 'leal'; label: string; icon: any }[] = [
+const NAV: { id: View; label: string; icon: any }[] = [
   { id: 'pos', label: 'Venta', icon: LayoutGrid },
   { id: 'customers', label: 'Clientes', icon: Users },
   { id: 'shift', label: 'Turno', icon: Clock },
@@ -100,10 +101,10 @@ export default function App() {
             <PrismaLogo size={16} className="text-primary" />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold">
+            <div className="text-base font-semibold">
               {session.storeConfig.storeName || 'Prisma'}
             </div>
-            <div className="font-mono text-[11px] text-muted tabular-nums">
+            <div className="font-mono text-sm text-muted tabular-nums">
               Tienda {session.storeConfig.storeId} · Terminal {session.storeConfig.posNumber}
             </div>
           </div>
@@ -160,6 +161,7 @@ export default function App() {
         {view === 'customers' && <CustomersScreen />}
         {view === 'shift' && <ShiftScreen />}
         {view === 'documents' && <DocumentsScreen />}
+                {view === 'pendientes' && <PendientesScreen />}
         {view === 'leal' && <LealScreen />}
         {view === 'config' && <ConfigScreen />}
       </main>

@@ -1,7 +1,7 @@
 import type { TicketData } from '../main/printer'
 
 export interface PosApi {
-  printTicket(backendUrl: string, printerPath: string, ticket: TicketData): Promise<{ ok: boolean }>
+  printTicket(backendUrl: string, printerPath: string, ticket: TicketData): Promise<{ ok: boolean; previewPath?: string }>
   quitApp(): void
 }
 

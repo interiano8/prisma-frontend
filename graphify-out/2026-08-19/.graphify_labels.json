@@ -1,0 +1,17 @@
+{
+  "0": "devDependencies",
+  "1": "client.ts",
+  "2": "package.json",
+  "3": "compilerOptions",
+  "4": "App.tsx",
+  "5": "PosScreen.tsx",
+  "6": "printer.ts",
+  "7": "store.tsx",
+  "8": "compilerOptions",
+  "9": "LealScreen.tsx",
+  "10": "tsconfig.json",
+  "11": "electron.vite.config.ts",
+  "12": "postcss.config.js",
+  "13": "env.d.ts",
+  "14": "tailwind.config.js"
+}

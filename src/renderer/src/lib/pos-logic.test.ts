@@ -14,7 +14,6 @@ import {
   cartItemTint,
   cartItemVatBadge,
   nextUid,
-  CHANGE_ALLOWED_CODES
 } from './pos-logic'
 import type { PaymentMethod, PumpTransaction } from '../api/types'
 
@@ -100,12 +99,6 @@ describe('pos-logic', () => {
     expect(cartItemTint('ISV_15')).toContain('accent')
     expect(cartItemVatBadge('EXENTO')).toContain('success')
     expect(cartItemVatBadge('ISV_15')).toContain('accent')
-  })
-
-  it('CHANGE_ALLOWED_CODES contiene efectivo y dólar', () => {
-    expect(CHANGE_ALLOWED_CODES.has('1002')).toBe(true)
-    expect(CHANGE_ALLOWED_CODES.has('1006')).toBe(true)
-    expect(CHANGE_ALLOWED_CODES.has('1003')).toBe(false)
   })
 
   it('nextUid genera identificadores únicos', () => {

@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { Dispenser, PumpTransaction } from '../api/types'
 import { fmtFechaHora, fmtQty, fmtValue, txStatus } from '../lib/pos-logic'
 import SurtidorIcon from './SurtidorIcon'
@@ -15,9 +16,28 @@ interface Props {
   onAddAndClose: (t: PumpTransaction) => void
 }
 
+const DOUBLE_TAP_MS = 280
+
 export default function PumpModal(props: Props) {
+  const lastTap = useRef<{ t: number; saleId: number | null }>({ t: 0, saleId: null })
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   if (!props.pump) return null
   const fmt = (n: number | string) => fmtValue(n, props.moneda)
+
+  function handleClick(t: PumpTransaction) {
+    const now = Date.now()
+    const prev = lastTap.current
+    lastTap.current = { t: now, saleId: t.saleId }
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (prev.saleId === t.saleId && now - prev.t < DOUBLE_TAP_MS) {
+      // Doble clic / doble tap sobre la misma venta: agregar y cerrar el modal.
+      props.onAddAndClose(t)
+    } else {
+      // Clic simple: agregar tras un pequeño margen para no duplicar con el doble.
+      timerRef.current = setTimeout(() => props.onAdd(t), DOUBLE_TAP_MS + 20)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -68,15 +88,13 @@ export default function PumpModal(props: Props) {
                 return (
                   <div
                     key={t.saleId}
-                    className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
+                    className={`flex select-none items-center gap-4 rounded-xl border p-4 touch-manipulation transition-colors ${
                       !inCart && status !== 'facturada' ? 'cursor-pointer hover:border-accent/50' : ''
                     } ${cardClass}`}
                     onClick={() => {
-                      if (!inCart && status !== 'facturada') props.onAdd(t)
+                      if (!inCart && status !== 'facturada') handleClick(t)
                     }}
-                    onDoubleClick={() => {
-                      if (!inCart && status !== 'facturada') props.onAddAndClose(t)
-                    }}
+                    onDoubleClick={(e) => e.preventDefault()}
                   >
                     <div className="flex flex-1 flex-col gap-1.5">
                       <div className="flex items-center gap-2">

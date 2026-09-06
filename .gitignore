@@ -1,12 +1,27 @@
+# Dependencias
 node_modules/
-out/
+
+# Build
 dist/
-build/
+out/
 release/
+
+# Cobertura y reportes
 coverage/
-playwright-report/
-test-results/
-*.tsbuildinfo
-graphify-out/
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Logs
+logs/
 *.log
+
+# OS / editor
 .DS_Store
+.idea/
+.vscode/
+*.swp

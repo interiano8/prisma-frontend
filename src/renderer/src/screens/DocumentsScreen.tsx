@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, getBackendUrl } from '../api/client'
 import { useApp } from '../store'
 import { formatRtn } from '../format'
+import { buildDocumento } from '../lib/documento-renderer'
+import { fmtServerDate, fmtServerDateFull, localDateServer } from '../lib/server-tz'
 import DatePicker from '../components/DatePicker'
 import {
   FileText,
@@ -25,7 +27,7 @@ interface DocRow {
   'VAT Reg_ No_'?: string
   EsCredito?: boolean
   TieneLeal?: boolean
-  TieneSorteo?: boolean
+  TieneCampana?: boolean
   'Customer Name 2'?: string
   Address?: string
   'Address 2'?: string
@@ -49,11 +51,20 @@ interface DocRow {
   'Salesperson Code'?: string
   'POS Code'?: string
   'Emitter No_'?: string
-  'BC ID'?: string
+  'ERP ID'?: string
+  CAI?: string | null
+  RangoDesde?: string | null
+  RangoHasta?: string | null
+  FechaVence?: string | null
+  Turno?: string | null
+  TurnoFecha?: string | null
 }
 
 function fmtMoney(n: number | string | null | undefined): string {
-  return Number(n || 0).toFixed(2)
+  return Number(n || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 function fmtMoneyStore(n: number | string | null | undefined, moneda?: string): string {
@@ -62,30 +73,27 @@ function fmtMoneyStore(n: number | string | null | undefined, moneda?: string): 
 }
 
 function fmtDate(iso?: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return fmtServerDate(iso)
 }
 
 function localDate(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return localDateServer(iso)
 }
 
 function docTypeLabel(t?: number): string {
   if (t === 1) return 'Factura'
-  if (t === 2) return 'Ticket'
+  if (t === 2) return 'Crédito'
+  if (t === 3) return 'Nota Crédito'
+  if (t === 4) return 'Ticket'
+  if (t === 7) return 'Ticket interno'
   return 'Doc'
 }
 
 function docTypeClass(t?: number): string {
   if (t === 1) return 'bg-accent/10 text-accent'
   if (t === 2) return 'bg-warning/10 text-warning'
+  if (t === 3) return 'bg-destructive/10 text-destructive'
+  if (t === 4 || t === 7) return 'bg-border/60 text-muted'
   return 'bg-border/60 text-muted'
 }
 
@@ -129,17 +137,7 @@ interface DetailGroup {
 }
 
 function fmtDateFull(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  return d.toLocaleString('es-HN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+  return fmtServerDateFull(iso)
 }
 
 function buildDetailGroups(d: DocRow, moneda?: string, shiftDate?: string): DetailGroup[] {
@@ -184,7 +182,7 @@ function buildDetailGroups(d: DocRow, moneda?: string, shiftDate?: string): Deta
   push(otros, 'Placa orden', d['Order Plate'])
   push(otros, 'Chofer', d.Driver)
   push(otros, 'Comentario', d.Comment)
-  push(otros, 'BC ID', d['BC ID'])
+  push(otros, 'ERP ID', d['ERP ID'])
 
   const groups: DetailGroup[] = []
   if (doc.length) groups.push({ title: 'Documento', items: doc })
@@ -204,10 +202,15 @@ export default function DocumentsScreen() {
   const [message, setMessage] = useState('')
 
   const [selected, setSelected] = useState<DocRow | null>(null)
+  const [ncOpen, setNcOpen] = useState(false)
+  const [ncReason, setNcReason] = useState('')
+  const [ncPass, setNcPass] = useState('')
+  const [ncBusy, setNcBusy] = useState(false)
+  const [ncMsg, setNcMsg] = useState('')
   const [lines, setLines] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [lealMessage, setLealMessage] = useState('')
-  const [sorteos, setSorteos] = useState<any[]>([])
+  const [campanas, setCampanas] = useState<any[]>([])
 
   const [otherDate, setOtherDate] = useState(() => localDate(new Date().toISOString()))
   const [availableShifts, setAvailableShifts] = useState<any[]>([])
@@ -425,7 +428,7 @@ export default function DocumentsScreen() {
     setLines([])
     setPayments([])
     setLealMessage('')
-    setSorteos([])
+    setCampanas([])
     const txId = row['POS Transaction ID']
     if (!txId) return
     try {
@@ -433,12 +436,12 @@ export default function DocumentsScreen() {
         api.invoiceLines(txId),
         api.invoicePayments(txId),
         api.invoiceLealMessage(txId).catch(() => ({ lealReprintMessage: '' })),
-        api.invoiceSorteos(txId).catch(() => []),
+        api.invoiceCampanas(txId).catch(() => []),
       ])
       setLines(l)
       setPayments(py)
       setLealMessage(leal.lealReprintMessage || '')
-      setSorteos(sor)
+      setCampanas(sor)
     } catch (e: any) {
       setMessage(e.message)
     }
@@ -449,61 +452,104 @@ export default function DocumentsScreen() {
     const loadedLines = l ?? (txId ? await api.invoiceLines(txId).catch(() => []) : [])
     const loadedPayments = py ?? (txId ? await api.invoicePayments(txId).catch(() => []) : [])
     const loadedLeal = lealMsg ?? (txId ? (await api.invoiceLealMessage(txId).catch(() => ({ lealReprintMessage: '' }))).lealReprintMessage : '')
-    const loadedSorteos = sor ?? (txId ? await api.invoiceSorteos(txId).catch(() => []) : [])
-    const linesOut: { text: string; align?: 'left' | 'center' | 'right'; bold?: boolean; size?: 'normal' | 'large' }[] = []
-    linesOut.push({ text: store.storeName || 'Prisma', align: 'center', bold: true, size: 'large' })
-    if (store.address) linesOut.push({ text: store.address, align: 'center' })
-    if (store.rtn) linesOut.push({ text: `RTN: ${store.rtn}`, align: 'center' })
-    linesOut.push({ text: '--------------------------------', align: 'center' })
-    linesOut.push({ text: docTypeLabel(row['POS Sales Doc_ Type']).toUpperCase(), align: 'center', bold: true })
-    linesOut.push({ text: `No: ${row['POS Sales Doc_ No_'] || ''}`, align: 'center' })
-    linesOut.push({ text: `Fecha: ${fmtDate(row['Sale Date Time'])}`, align: 'center' })
-    if (currentShift) {
-      linesOut.push({
-        text: `Turno: ${mode === 'other' && selectedShift ? `${otherDate} / ${selectedShift.Turno ?? ''}` : currentShift}`,
-        align: 'center',
-      })
+    const loadedCampanas = sor ?? (txId ? await api.invoiceCampanas(txId).catch(() => []) : [])
+    const columns = Number(store.printerConfig?.columns) || 48
+
+    const g15 = loadedLines.filter((l: any) => /15/.test(String(l['VAT Prod_ Posting Group'] || '')))
+    const g18 = loadedLines.filter((l: any) => /18/.test(String(l['VAT Prod_ Posting Group'] || '')))
+    const ex = loadedLines.filter((l: any) => !/15|18/.test(String(l['VAT Prod_ Posting Group'] || '')))
+    const sum = (arr: any[], f: (x: any) => number) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0)
+    const gravado15 = sum(g15, (l: any) => Number(l['Amount Including VAT']) - Number(l.VAT_Amount))
+    const gravado18 = sum(g18, (l: any) => Number(l['Amount Including VAT']) - Number(l.VAT_Amount))
+    const exento = sum(ex, (l: any) => Number(l['Amount Including VAT']) - Number(l.VAT_Amount))
+    const isv15 = sum(g15, (l: any) => l.VAT_Amount)
+    const isv18 = sum(g18, (l: any) => l.VAT_Amount)
+    const descuento = sum(loadedLines, (l: any) => l['Line Discount Amount'])
+
+    const extra: string[] = []
+    if (loadedLeal) for (const m of loadedLeal.split('\n').filter((x: string) => x.trim())) extra.push(m)
+    for (const s of loadedCampanas) {
+      extra.push(`Campana: ${s.nombre || `#${s.campanaId ?? ''}`}${s.correlativo ? ` | ${s.correlativo}` : ''}`)
+      if (s.textoTicket) extra.push(s.textoTicket)
     }
-    linesOut.push({ text: `Cliente: ${row['Cust_ Name'] || ''}` })
-    if (row['VAT Reg_ No_']) linesOut.push({ text: `RTN: ${formatRtn(row['VAT Reg_ No_'])}` })
-    linesOut.push({ text: '--------------------------------' })
-    linesOut.push({ text: 'DESC         CANT     TOTAL', bold: true })
-    for (const l of loadedLines) {
-      const name = String(l.Description || '').substring(0, 20).padEnd(20)
-      const qty = String(l.Quantity ?? '').padEnd(9)
-      const amt = fmtMoney(l['Amount Including VAT']).padStart(10)
-      linesOut.push({ text: `${name}${qty}${amt}` })
-      if (Number(l['Line Discount Amount'] || 0) > 0) {
-        linesOut.push({ text: `   desc: -${fmtMoney(l['Line Discount Amount'])}` })
-      }
-    }
-    linesOut.push({ text: '--------------------------------' })
-    linesOut.push({ text: `TOTAL: ${fmtMoney(row.Amount).padStart(22)}`, bold: true, size: 'large' })
-    if (loadedPayments.length > 0) {
-      linesOut.push({ text: '--------------------------------' })
-      for (const p of loadedPayments) {
-        linesOut.push({ text: `${p.Description || p['Charge Method Code'] || 'Pago'}: ${fmtMoney(p.Amount)}` })
-      }
-    }
-    if (loadedLeal) {
-      linesOut.push({ text: '--------------------------------' })
-      for (const m of loadedLeal.split('\n').filter((x: string) => x.trim())) {
-        linesOut.push({ text: m })
-      }
-    }
-    if (loadedSorteos.length > 0) {
-      linesOut.push({ text: '--------------------------------' })
-      for (const s of loadedSorteos) {
-        linesOut.push({ text: `Sorteo: ${s.nombre || `#${s.sorteoId ?? ''}`}${s.correlativo ? ` | ${s.correlativo}` : ''}` })
-        if (s.textoTicket) linesOut.push({ text: s.textoTicket })
-      }
-    }
-    linesOut.push({ text: '--------------------------------' })
-    linesOut.push({ text: '¡Gracias por su compra!', align: 'center' })
+
+    const lines = buildDocumento({
+      tipo:
+        row['POS Sales Doc_ Type'] === 4 || row['POS Sales Doc_ Type'] === 7
+          ? 'ticket'
+          : row['POS Sales Doc_ Type'] === 3
+            ? 'nc'
+            : 'reimpresion',
+      modo:
+        row['POS Sales Doc_ Type'] === 4 ||
+        row['POS Sales Doc_ Type'] === 7 ||
+        row['POS Sales Doc_ Type'] === 3
+          ? undefined
+          : row.EsCredito
+            ? 'credito'
+            : 'contado',
+      store: {
+        storeName: store.storeName || store.name,
+        address: store.address,
+        address1: store.address1,
+        address2: store.address2,
+        address3: store.address3,
+        rtn: store.rtn,
+        phone: store.phone,
+        email: store.email,
+        casaMatriz: store.casaMatriz
+      },
+      numeroDocumento: row['POS Sales Doc_ No_'] || '',
+      cai: row.CAI || undefined,
+      rangoDesde: row.RangoDesde || undefined,
+      rangoHasta: row.RangoHasta || undefined,
+      fechaVence: row.FechaVence || undefined,
+      fecha: fmtDate(row['Sale Date Time']),
+      turno: row.Turno
+        ? String(row.Turno)
+        : mode === 'other' && selectedShift
+          ? `${otherDate} / ${selectedShift.Turno ?? ''}`
+          : currentShift || undefined,
+      cajero: session?.user.name,
+      cliente: row['Cust_ Name'] || '',
+      rtnCliente: row['VAT Reg_ No_'] ? formatRtn(row['VAT Reg_ No_']) : undefined,
+      items: loadedLines.map((l: any) => ({
+        description: String(l.Description || ''),
+        qty: Number(l.Quantity) || 0,
+        price: Number(l['Unit Price Incl_ VAT']) || 0,
+        total: Number(l['Amount Including VAT']) || 0,
+        discount: Number(l['Line Discount Amount']) || 0,
+        pumpNumber: l['Pump No_'] ? Number(l['Pump No_']) : undefined
+      })),
+      subtotal: exento + gravado15 + gravado18,
+      descuento,
+      isv: isv15 + isv18,
+      exento,
+      gravado15,
+      gravado18,
+      isv15,
+      isv18,
+      total: Number(row.Amount) || 0,
+      cambio: Number(row.Change) || 0,
+      pagos: loadedPayments.map((p: any) => ({
+        method: p.Description || p.MetodoPago || p['Charge Method Code'] || 'Pago',
+        amount: Number(p.Amount) || 0,
+        moneda: String(p.Categoria || '').toUpperCase().includes('DOLAR') ? 'USD' : undefined,
+        tasaCambio: p.TasaCambio ? Number(p.TasaCambio) : undefined,
+        montoIngresado: p.MontoIngresado ? Number(p.MontoIngresado) : undefined
+      })),
+      comentario: row.Comment || undefined,
+      mensajeAdicional: extra.join('\n'),
+      columns
+    })
 
     const printerPath = store.printerConfig?.printerPath || store.printerConfig?.printerName || ''
     try {
-      await window.api.printTicket(getBackendUrl(), printerPath, { lines: linesOut, cut: true })
+      await window.api.printTicket(getBackendUrl(), printerPath, {
+        lines,
+        cut: true,
+        columns
+      })
       setMessage('Impreso.')
     } catch (e: any) {
       setMessage('Error imprimiendo: ' + e.message)
@@ -512,7 +558,100 @@ export default function DocumentsScreen() {
 
   async function reprint() {
     if (!selected) return
-    await printDoc(selected, lines, payments, lealMessage, sorteos)
+    await printDoc(selected, lines, payments, lealMessage, campanas)
+  }
+
+  async function printNcAlEmitir(creditNoteNo: string) {
+  if (!selected) return
+  const txId = String(selected['POS Transaction ID'] || '')
+  const loadedLines = txId ? await api.invoiceLines(txId).catch(() => []) : []
+  const loadedPayments = txId ? await api.invoicePayments(txId).catch(() => []) : []
+  const columns = Number(store.printerConfig?.columns) || 48
+  const lines = buildDocumento({
+    tipo: 'nc',
+    store: {
+      storeName: store.storeName || store.name,
+      address: store.address,
+      address1: store.address1,
+      address2: store.address2,
+      address3: store.address3,
+      rtn: store.rtn,
+      phone: store.phone,
+      email: store.email,
+      casaMatriz: store.casaMatriz
+    },
+    numeroDocumento: creditNoteNo,
+    fecha: new Date().toLocaleString(),
+    turno: currentShift || undefined,
+    cajero: session!.user.name,
+    cliente: selected['Cust_ Name'] || '',
+    rtnCliente: selected['VAT Reg_ No_'] ? formatRtn(selected['VAT Reg_ No_']) : undefined,
+    items: loadedLines.map((l) => {
+      const total = -(Number(l['Amount Including VAT']) || 0)
+      const qty = Number(l.Quantity) || 0
+      return {
+        description: String(l.Description || ''),
+        qty,
+        price: qty ? total / qty : 0,
+        total,
+        discount: Number(l['Line Discount Amount']) || 0
+      }
+    }),
+    subtotal: -(selected.Amount ?? 0),
+    descuento: 0,
+    isv: 0,
+    total: -(selected.Amount ?? 0),
+    pagos: loadedPayments.map((p) => ({
+      method: p.Description || p['Charge Method Code'] || 'Pago',
+      amount: -(Number(p.Amount) || 0)
+    })),
+    comentario: ncReason,
+    columns
+  })
+  const printerPath = store.printerConfig?.printerPath || store.printerConfig?.printerName || ''
+  await window.api.printTicket(getBackendUrl(), printerPath, {
+      lines,
+      cut: true,
+      columns
+    }).catch(() => {})
+}
+
+async function submitNotaCredito() {
+    if (!selected) return
+    if (!ncReason.trim()) {
+      setNcMsg('Ingrese el motivo de la devolución.')
+      return
+    }
+    if (!ncPass.trim()) {
+      setNcMsg('Ingrese la contraseña de administrador.')
+      return
+    }
+    setNcBusy(true)
+    setNcMsg('')
+    try {
+      const valid = await api.validateAdmin(store.storeId, ncPass)
+      if (!valid.valid) {
+        setNcMsg('Contraseña de administrador inválida.')
+        return
+      }
+      const res = await api.creditNote({
+        storeId: store.storeId,
+        posNo: store.posNumber,
+        username: session!.user.name,
+        invoiceNo: String(selected['POS Sales Doc_ No_'] || ''),
+        transactionId: String(selected['POS Transaction ID'] || ''),
+        reason: ncReason,
+        adminPassword: ncPass,
+      })
+      setNcMsg(`Nota de Crédito ${res.creditNoteNo || 'emitida'} ✓`)
+      setNcReason('')
+      setNcPass('')
+      if (res.creditNoteNo) await printNcAlEmitir(res.creditNoteNo)
+    } catch (e: any) {
+      setNcMsg(e?.message || 'Error al emitir la Nota de Crédito.')
+    } finally {
+      setNcBusy(false)
+    }
   }
 
   return (
@@ -732,8 +871,8 @@ export default function DocumentsScreen() {
                         {r.TieneLeal && (
                           <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">Leal</span>
                         )}
-                        {r.TieneSorteo && (
-                          <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-500">Sorteo</span>
+                        {r.TieneCampana && (
+                          <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-500">Campana</span>
                         )}
                       </div>
                       <div className="min-w-0 truncate text-sm text-muted">{r['Cust_ Name'] || '—'}</div>
@@ -804,8 +943,8 @@ export default function DocumentsScreen() {
                   {selected.TieneLeal && (
                     <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">Leal</span>
                   )}
-                  {selected.TieneSorteo && (
-                    <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-500">Sorteo</span>
+                  {selected.TieneCampana && (
+                    <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-500">Campana</span>
                   )}
                 </div>
                 <h3 className="mt-1.5 font-mono text-lg font-semibold tabular-nums">{selected['POS Sales Doc_ No_']}</h3>
@@ -814,6 +953,18 @@ export default function DocumentsScreen() {
                 </div>
               </div>
               <div className="flex shrink-0 items-start gap-2">
+                {selected['POS Sales Doc_ Type'] !== 3 && (
+                  <button
+                    className="btn-press rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger/10"
+                    onClick={() => {
+                      setNcMsg('')
+                      setNcOpen(true)
+                    }}
+                    title="Emitir Nota de Crédito"
+                  >
+                    Nota de Crédito
+                  </button>
+                )}
                 <span className="font-mono text-xl font-semibold text-success tabular-nums">{fmtMoneyStore(selected.Amount, store.moneda)}</span>
                 <button className="btn-press rounded-lg p-1 text-muted transition-colors hover:bg-card hover:text-primary" onClick={() => setSelected(null)} title="Cerrar">
                   <X size={18} />
@@ -958,15 +1109,15 @@ export default function DocumentsScreen() {
                 </div>
               )}
 
-              {sorteos.length > 0 && (
+              {campanas.length > 0 && (
                 <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-warning">
-                    Sorteos
+                    Campanas
                   </div>
-                  {sorteos.map((s, i) => (
+                  {campanas.map((s, i) => (
                     <div key={i} className="flex items-start justify-between gap-2 text-sm">
                       <span className="min-w-0 flex-1" title={s.textoTicket}>
-                        {s.nombre || `Sorteo #${s.sorteoId ?? ''}`}
+                        {s.nombre || `Campana #${s.campanaId ?? ''}`}
                       </span>
                       {s.correlativo && <span className="shrink-0 font-mono text-muted tabular-nums">{s.correlativo}</span>}
                     </div>
@@ -993,6 +1144,56 @@ export default function DocumentsScreen() {
           <button className="btn-press shrink-0 text-muted transition-colors hover:text-primary" onClick={() => setMessage('')} title="Cerrar">
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {ncOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="card-surface w-[max(420px,35vw)] p-6 animate-in fade-in-0 zoom-in-95">
+            <h3 className="mb-4 text-lg font-semibold">Nota de Crédito</h3>
+            <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted">
+              Documento: {selected?.['POS Sales Doc_ No_']} · Devolución total autorizada por administrador.
+            </div>
+            <label className="label-base">Motivo de la devolución *</label>
+            <input
+              className="input-base mb-3 w-full"
+              value={ncReason}
+              onChange={(e) => setNcReason(e.target.value)}
+              placeholder="Ej.: devolución de mercadería"
+            />
+            <label className="label-base">Contraseña de administrador *</label>
+            <input
+              type="password"
+              className="input-base mb-3 w-full"
+              value={ncPass}
+              onChange={(e) => setNcPass(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submitNotaCredito()}
+              placeholder="••••••"
+            />
+            {ncMsg && (
+              <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted">
+                {ncMsg}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                className="btn-press flex-1 rounded-lg border border-border py-2 text-sm"
+                onClick={() => {
+                  setNcOpen(false)
+                  setNcMsg('')
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn-press flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+                onClick={submitNotaCredito}
+                disabled={ncBusy}
+              >
+                {ncBusy ? 'Procesando…' : 'Emitir NC'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

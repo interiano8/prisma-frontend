@@ -129,7 +129,12 @@ export function computePaidChange(
   total: number
 ): { paid: number; change: number } {
   const paid = round2(
-    payments.reduce((a, p) => a + (Number(p.amount) || 0), 0)
+    payments.reduce((a, p) => {
+      const amt = Number(p.amount) || 0
+      const hnl =
+        p.moneda === 'USD' && p.tasaCambio ? amt * p.tasaCambio : amt
+      return a + hnl
+    }, 0)
   )
   return { paid, change: Math.max(0, round2(paid - total)) }
 }

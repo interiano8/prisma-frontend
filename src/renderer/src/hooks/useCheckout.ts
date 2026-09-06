@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type {
   CartItem,
   CartPayment,
@@ -7,7 +7,7 @@ import type {
   PaymentMethod,
   StoreConfig
 } from '../api/types'
-import { CHANGE_ALLOWED_CODES, errMsg, round2 } from '../lib/pos-logic'
+import { errMsg, round2 } from '../lib/pos-logic'
 import { computePaidChange, Totals } from '../lib/pos-cart'
 import type { PrintTicketInput } from '../printing'
 import { api } from '../api/client'
@@ -22,7 +22,7 @@ export interface UseCheckoutOptions {
   hasShift: boolean
   customer: Customer | null
   onCustomerChange: (c: Customer | null) => void
-  onSaleComplete: (invoiceNo: string) => void
+  onSaleComplete: (invoiceNo: string, change: number) => void
   setMessage: (m: string) => void
   printTicket: (input: PrintTicketInput) => Promise<void>
 }
@@ -33,9 +33,20 @@ export function useCheckout(opts: UseCheckoutOptions) {
 
   const [payments, setPayments] = useState<CartPayment[]>([])
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [tasaCambio, setTasaCambio] = useState(1)
   const [busy, setBusy] = useState(false)
   const amountInputsRef = useRef<(HTMLInputElement | null)[]>([])
   const [billingType, setBillingType] = useState<'contado' | 'credito'>('contado')
+  const [esTicket, setEsTicket] = useState(false)
+
+  useEffect(() => {
+    api
+      .tasaCambioLatest()
+      .then((r) => {
+        if (r && r.tasa > 0) setTasaCambio(Number(r.tasa))
+      })
+      .catch(() => {})
+  }, [])
   const [customerMode, setCustomerMode] = useState<CustomerMode>('none')
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [isFidelizacion, setIsFidelizacion] = useState(false)
@@ -47,6 +58,8 @@ export function useCheckout(opts: UseCheckoutOptions) {
   const [comment, setComment] = useState('')
 
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false)
+  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null)
+  const closeAlertModal = () => setAlertModal(null)
   const [formRtn, setFormRtn] = useState('')
   const [formName, setFormName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -60,12 +73,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
 
   async function searchCustomers(q: string) {
     setCustomerQuery(q)
-    if (!q) {
-      setCustomerResults([])
-      return
-    }
     const res = await api.searchCustomers(q, customerMode === 'credito')
-    setCustomerResults(res)
+    // query vacía → "Recientes" (el backend ordena por fechaActualizacion DESC)
+    setCustomerResults(q ? (res ?? []) : (res ?? []).slice(0, 10))
   }
 
   function openCustomerMode(mode: 'rtn' | 'credito' | 'fidelizacion') {
@@ -74,6 +84,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
     setCustomerQuery('')
     setCustomerResults([])
     setCustomerModalOpen(true)
+    void searchCustomers('')
   }
 
   function selectCustomer(c: Customer) {
@@ -169,14 +180,21 @@ export function useCheckout(opts: UseCheckoutOptions) {
       opts.setMessage('El total ya está cubierto.')
       return
     }
+    const esUsd = method.moneda === 'USD'
+    const initial = esUsd
+      ? (remaining / (tasaCambio || 1)).toFixed(2)
+      : remaining.toFixed(2)
     setPayments((prev) => [
       ...prev,
       {
         method: method.description,
         code: method.code,
-        amount: remaining.toFixed(2),
+        amount: initial,
         reference: '',
-        requiereReferencia: method.requiereReferencia
+        requiereReferencia: method.requiereReferencia,
+        moneda: esUsd ? 'USD' : undefined,
+        tasaCambio: esUsd ? tasaCambio : undefined,
+        generaCambio: method.generaCambio
       }
     ])
     requestAnimationFrame(() => {
@@ -203,7 +221,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
     const others = paid - (Number(payment.amount) || 0)
     const maxAllowed = Math.max(0, round2(opts.totals.total - others))
     const amount =
-      CHANGE_ALLOWED_CODES.has(payment.code) || isNaN(v) || v <= maxAllowed
+      payment.generaCambio || isNaN(v) || v <= maxAllowed
         ? cleaned
         : String(maxAllowed)
     setPayments((prev) =>
@@ -226,44 +244,48 @@ export function useCheckout(opts: UseCheckoutOptions) {
       opts.setMessage('Seleccione un cliente.')
       return
     }
-    if (!opts.customer.rtf) {
+    if (!esTicket && !opts.customer.rtf) {
       opts.setMessage('El cliente seleccionado no tiene RTN y no puede facturar.')
       return
     }
-    if (
-      payments.some(
+    if (!esTicket) {
+      if (
+        payments.some(
+          (p) =>
+            !String(p.amount).trim() ||
+            isNaN(Number(p.amount)) ||
+            Number(p.amount) <= 0
+        )
+      ) {
+        opts.setMessage('Las formas de pago no pueden tener monto en cero.')
+        return
+      }
+      const over = payments.find(
         (p) =>
-          !String(p.amount).trim() ||
-          isNaN(Number(p.amount)) ||
-          Number(p.amount) <= 0
+          !p.generaCambio &&
+          Number(p.amount) > opts.totals.total
       )
-    ) {
-      opts.setMessage('Las formas de pago no pueden tener monto en cero.')
-      return
-    }
-    const over = payments.find(
-      (p) => !CHANGE_ALLOWED_CODES.has(p.code) && Number(p.amount) > opts.totals.total
-    )
-    if (over) {
-      opts.setMessage(
-        `"${over.method}" no puede exceder el total; solo Efectivo y Dólar generan cambio.`
+      if (over) {
+        opts.setMessage(
+          `"${over.method}" no puede exceder el total; solo Efectivo y Dólar generan cambio.`
+        )
+        return
+      }
+      if (payments.length === 0) {
+        opts.setMessage('Agregue al menos un método de pago.')
+        return
+      }
+      const faltaRef = payments.find(
+        (p) => p.requiereReferencia && !(p.reference || '').trim()
       )
-      return
-    }
-    if (payments.length === 0) {
-      opts.setMessage('Agregue al menos un método de pago.')
-      return
-    }
-    const faltaRef = payments.find(
-      (p) => p.requiereReferencia && !(p.reference || '').trim()
-    )
-    if (faltaRef) {
-      opts.setMessage(`Ingrese la referencia para "${faltaRef.method}".`)
-      return
-    }
-    if (paid < opts.totals.total) {
-      opts.setMessage('El pago no cubre el total.')
-      return
+      if (faltaRef) {
+        opts.setMessage(`Ingrese la referencia para "${faltaRef.method}".`)
+        return
+      }
+      if (paid < opts.totals.total) {
+        opts.setMessage('El pago no cubre el total.')
+        return
+      }
     }
     if (billingType === 'credito') {
       if (!orden.trim()) {
@@ -282,6 +304,19 @@ export function useCheckout(opts: UseCheckoutOptions) {
     setBusy(true)
     opts.setMessage('')
     try {
+      const pre = await api.validateCorrelative(
+        opts.store.storeId,
+        opts.store.posNumber,
+        esTicket
+      )
+      if (!pre?.isValid) {
+        setAlertModal({
+          title: 'No se puede facturar',
+          message: pre?.message || 'No hay un rango de correlativos válido.'
+        })
+        opts.setMessage('')
+        return
+      }
       const result = await api.createInvoice({
         storeId: opts.store.storeId,
         posNo: opts.store.posNumber,
@@ -291,11 +326,20 @@ export function useCheckout(opts: UseCheckoutOptions) {
         customerName: opts.customer.name,
         customerRtn: opts.customer.rtf,
         items: opts.effectiveCart,
-        payments: payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+        payments: esTicket
+          ? []
+          : payments.map((p) => ({
+              ...p,
+              amount: Number(p.amount),
+              moneda: p.moneda,
+              tasaCambio: p.tasaCambio,
+              montoIngresado: p.moneda === 'USD' ? Number(p.amount) : undefined
+            })),
         total: Number(opts.totals.total.toFixed(2)),
         tax: Number(opts.totals.tax.toFixed(2)),
         discount: Number(opts.totals.discount.toFixed(2)),
         isCredit: billingType === 'credito',
+        isTicket: esTicket,
         orden: orden.trim(),
         km: kmValue.trim() ? `${kmValue.trim()} ${kmUnit}` : '',
         chofer: chofer.trim(),
@@ -306,11 +350,22 @@ export function useCheckout(opts: UseCheckoutOptions) {
         await opts.printTicket({
           session: opts.session,
           items: opts.effectiveCart,
-          payments: payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+          payments: esTicket
+          ? []
+          : payments.map((p) => ({
+              ...p,
+              amount: Number(p.amount),
+              moneda: p.moneda,
+              tasaCambio: p.tasaCambio,
+              montoIngresado: p.moneda === 'USD' ? Number(p.amount) : undefined
+            })),
           total: opts.totals.total,
           tax: opts.totals.tax,
           discount: opts.totals.discount,
           result,
+          isTicket: esTicket,
+          isCredit: billingType === 'credito',
+          cambio: change,
           customerName: opts.customer.name,
           customerRtn: opts.customer.rtf
         })
@@ -318,7 +373,12 @@ export function useCheckout(opts: UseCheckoutOptions) {
         console.warn('Error imprimiendo:', printErr.message)
       }
 
-      opts.setMessage(`Venta ${result.invoiceNo} completada.`)
+      const seriesMsg =
+        result.seriesRemaining != null &&
+        (result.seriesRemaining <= 100 || (result.seriesRemainingDays ?? 999) <= 5)
+          ? ` · ⚠ quedan ${result.seriesRemaining} · vence en ${result.seriesRemainingDays} días`
+          : ''
+      opts.setMessage(`Venta ${result.invoiceNo} completada.${seriesMsg}`)
       setPayments([])
       opts.onCustomerChange(null)
       setOrden('')
@@ -329,7 +389,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
       setCustomerMode('none')
       setCustomerModalOpen(false)
       setCheckoutOpen(false)
-      opts.onSaleComplete(result.invoiceNo)
+      opts.onSaleComplete(result.invoiceNo, change)
     } catch (e: any) {
       opts.setMessage(errMsg(e))
     } finally {
@@ -345,6 +405,8 @@ export function useCheckout(opts: UseCheckoutOptions) {
     checkoutOpen,
     busy,
     billingType,
+    esTicket,
+    setEsTicket,
     customerMode,
     customerModalOpen,
     isFidelizacion,
@@ -374,6 +436,8 @@ export function useCheckout(opts: UseCheckoutOptions) {
     openCheckout: () => setCheckoutOpen(true),
     closeCheckout: () => setCheckoutOpen(false),
     setCheckoutOpen,
+    alertModal,
+    closeAlertModal,
     checkout,
     setBillingType,
     setIsFidelizacion,

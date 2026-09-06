@@ -1,7 +1,7 @@
 import { expect, Page } from '@playwright/test'
 import { Client } from 'pg'
 
-export const BACKEND_URL = process.env.E2E_BACKEND_URL || 'http://localhost:5009'
+export const BACKEND_URL = process.env.E2E_BACKEND_URL || 'http://localhost:5012'
 export const E2E_USER = process.env.E2E_USER || 'prueba'
 export const E2E_PASSWORD = process.env.E2E_PASSWORD || '1234'
 export const STORE_ID = process.env.E2E_STORE || '001'

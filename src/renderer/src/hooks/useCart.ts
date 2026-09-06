@@ -40,22 +40,21 @@ export function useCart(opts: UseCartOptions) {
   }, [opts.customerCode])
 
   useEffect(() => {
-    if (!opts.customerCode || opts.isConsumidorFinal) {
-      if (Object.keys(discountMap).length) setDiscountMap({})
-      return
-    }
-    const sig = `${opts.customerCode}::${cartSignature}`
+    const customerCode = opts.customerCode || ''
+    const sig = `${customerCode}::${cartSignature}`
     if (discountSigRef.current === sig) return
     discountSigRef.current = sig
     if (cart.length === 0) return
     opts
       .fetchDiscounts(
-        opts.customerCode,
+        customerCode,
         cart.map((i) => ({
           code: i.code,
           quantity: i.qty,
           vatGroup: i.vatGroup,
-          unitPrice: i.price
+          // Combustible: usar el ppu efectivo del controlador (total/qty)
+          // para que el descuento se calcule sobre sale.amount, igual que la línea.
+          unitPrice: i.saleId ? (i.qty ? i.total / i.qty : i.price) : i.price
         }))
       )
       .then((results) => {
@@ -98,11 +97,6 @@ export function useCart(opts: UseCartOptions) {
   function toggleDiscount(
     item: CartItem
   ): { ok: boolean; reason?: string } {
-    if (!opts.customerCode)
-      return { ok: false, reason: 'Seleccione un cliente para aplicar descuentos.' }
-    const d = discountMap[item.code]
-    if (!d || !d.hasDiscount)
-      return { ok: false, reason: `Sin descuento configurado para ${item.description}.` }
     const uid = item.uid
     if (!uid) return { ok: false }
     const applied = item.discount > 0

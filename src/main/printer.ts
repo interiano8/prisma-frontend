@@ -1,4 +1,7 @@
 import * as net from 'net'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as os from 'os'
 
 export interface TicketLine {
   text: string
@@ -13,77 +16,31 @@ export interface TicketData {
   columns?: number // 32 (80mm) o 48 (58mm)
 }
 
-const ESC = 0x1b
-const GS = 0x1d
+import { Printer, InMemory, Style, Align } from 'escpos-buffer'
 
 function looksLikeIp(path: string): boolean {
   return /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(:[0-9]{1,5})?$/.test(path)
 }
 
-function splitText(text: string, columns: number): string[] {
-  if (!text) return ['']
-  const out: string[] = []
-  for (const raw of text.split('\n')) {
-    if (raw.length <= columns) {
-      out.push(raw)
-      continue
-    }
-    let rest = raw
-    while (rest.length > columns) {
-      out.push(rest.substring(0, columns))
-      rest = rest.substring(columns)
-    }
-    if (rest.length > 0 || raw.length === 0) out.push(rest)
-  }
-  return out
-}
-
-function pad(text: string, columns: number, align: 'left' | 'center' | 'right'): string {
-  const s = text ?? ''
-  if (s.length >= columns) return s.substring(0, columns)
-  if (align === 'right') return s.padStart(columns, ' ')
-  if (align === 'center') {
-    const left = Math.floor((columns - s.length) / 2)
-    return ' '.repeat(left) + s
-  }
-  return s.padEnd(columns, ' ')
-}
-
-export function buildEscPos(ticket: TicketData): Buffer {
-  const columns = ticket.columns || 48
-  const chunks: Buffer[] = []
-
-  // init
-  chunks.push(Buffer.from([ESC, 0x40]))
-
+export async function buildEscPos(ticket: TicketData): Promise<Buffer> {
+  const connection = new InMemory()
+  const printer = await Printer.CONNECT('MP-4200 TH', connection)
+  if (ticket.columns) await printer.setColumns(ticket.columns)
   for (const line of ticket.lines) {
-    if (line.size === 'large') {
-      chunks.push(Buffer.from([GS, 0x21, 0x11])) // doble alto y ancho
-    } else if (line.bold) {
-      chunks.push(Buffer.from([ESC, 0x45, 0x01]))
-    }
-
-    if (line.align === 'center') chunks.push(Buffer.from([ESC, 0x61, 0x01]))
-    else if (line.align === 'right') chunks.push(Buffer.from([ESC, 0x61, 0x02]))
-    else chunks.push(Buffer.from([ESC, 0x61, 0x00]))
-
-    for (const part of splitText(line.text, columns)) {
-      chunks.push(Buffer.from(pad(part, columns, line.align || 'left'), 'latin1'))
-      chunks.push(Buffer.from([0x0a]))
-    }
-
-    // reset format
-    if (line.size === 'large') chunks.push(Buffer.from([GS, 0x21, 0x00]))
-    if (line.bold) chunks.push(Buffer.from([ESC, 0x45, 0x00]))
+    let style = 0
+    if (line.size === 'large') style = Style.DoubleWidth | Style.DoubleHeight
+    else if (line.bold) style = Style.Bold
+    const align =
+      line.align === 'center'
+        ? Align.Center
+        : line.align === 'right'
+          ? Align.Right
+          : Align.Left
+    await printer.writeln(line.text, style, align)
   }
-
-  chunks.push(Buffer.from([0x0a, 0x0a, 0x0a]))
-
-  if (ticket.cut !== false) {
-    chunks.push(Buffer.from([GS, 0x56, 0x42, 0x01])) // corte parcial
-  }
-
-  return Buffer.concat(chunks)
+  await printer.feed(2)
+  if (ticket.cut !== false) await printer.cutter()
+  return connection.buffer as unknown as Buffer
 }
 
 export function printToTcp(host: string, port: number, data: Buffer): Promise<void> {
@@ -116,20 +73,79 @@ export async function printViaBackend(
   }
 }
 
+function wrapText(text: string, width: number): string[] {
+  if (text.length <= width) return [text]
+  const words = text.split(' ')
+  const out: string[] = []
+  let cur = ''
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length > width) {
+      if (cur) out.push(cur.trim())
+      cur = w
+      while (cur.length > width) {
+        out.push(cur.slice(0, width))
+        cur = cur.slice(width)
+      }
+    } else {
+      cur = (cur + ' ' + w).trim()
+    }
+  }
+  if (cur) out.push(cur.trim())
+  return out.length ? out : [text]
+}
+
+function padCenter(s: string, width: number): string {
+  const diff = width - s.length
+  if (diff <= 0) return s
+  const left = Math.floor(diff / 2)
+  return ' '.repeat(left) + s + ' '.repeat(diff - left)
+}
+
+export function renderTicketText(ticket: TicketData): string {
+  const columns = ticket.columns || 48
+  const out: string[] = []
+  for (const line of ticket.lines) {
+    const text = line.text || ''
+    const width = line.size === 'large' ? columns : columns
+    const wrapped = wrapText(text, width)
+    for (const w of wrapped) {
+      if (line.align === 'center') out.push(padCenter(w, columns))
+      else if (line.align === 'right') out.push(w.padStart(columns))
+      else out.push(w.padEnd(columns))
+    }
+  }
+  return out.join('\n') + '\n'
+}
+
+export async function writePreview(ticket: TicketData): Promise<string> {
+  const columns = ticket.columns || 48
+  const dir = path.join(os.homedir(), 'prisma-preview')
+  fs.mkdirSync(dir, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const file = path.join(dir, `ticket-${stamp}.txt`)
+  const header = `PRISMA PREVIEW · columnas=${columns}\n${'-'.repeat(columns)}\n`
+  fs.writeFileSync(file, header + renderTicketText(ticket))
+  return file
+}
+
 export async function printTicket(
   backendUrl: string,
   printerPath: string,
   ticket: TicketData
-): Promise<void> {
-  const buffer = buildEscPos(ticket)
-  if (looksLikeIp(printerPath)) {
-    const parts = printerPath.split(':')
+): Promise<{ ok: boolean; previewPath?: string }> {
+  const path = !printerPath || printerPath === 'default' ? 'default' : printerPath
+  if (path === 'preview') {
+    const previewPath = await writePreview(ticket)
+    return { ok: true, previewPath }
+  }
+  const buffer = await buildEscPos(ticket)
+  if (looksLikeIp(path)) {
+    const parts = path.split(':')
     const host = parts[0]
     const port = parts.length > 1 ? parseInt(parts[1], 10) : 9100
     await printToTcp(host, port, buffer)
-  } else if (printerPath) {
-    await printViaBackend(backendUrl, printerPath, buffer)
   } else {
-    throw new Error('No hay impresora configurada.')
+    await printViaBackend(backendUrl, path, buffer)
   }
+  return { ok: true }
 }

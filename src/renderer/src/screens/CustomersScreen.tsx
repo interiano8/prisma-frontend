@@ -4,7 +4,7 @@ import type { Customer } from '../api/types'
 import { useApp } from '../store'
 import { formatRtn } from '../format'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Users, Search, Plus, X, Phone, Mail, MapPin, CreditCard, UserRound, UserX } from 'lucide-react'
+import { Users, Search, Plus, X, Phone, Mail, MapPin, CreditCard, UserRound, UserX, Ban, CheckCircle2, Hash } from 'lucide-react'
 
 function initials(name: string, code: string): string {
   const n = name.trim()
@@ -156,8 +156,8 @@ export default function CustomersScreen() {
       {/* Único área con scroll */}
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {loading ? (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(9)].map((_, i) => (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="card-surface h-[132px] animate-pulse p-4">
                 <div className="flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-full bg-border/70" />
@@ -182,7 +182,7 @@ export default function CustomersScreen() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {customers.map((c) => (
               <div
                 key={c.code}
@@ -191,32 +191,44 @@ export default function CustomersScreen() {
                 }`}
               >
                 <div className="flex min-w-0 items-start justify-between gap-2">
-<div className="flex min-w-0 items-center gap-2.5">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarColor(c.code)}`}>
-                    {initials(c.name, c.code)}
-                  </div>
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <div className="truncate text-sm font-medium">{c.name || `Cliente ${c.code}`}</div>
-                    <div className="flex min-w-0 items-center justify-between gap-2">
-                      <div className="truncate font-mono text-[11px] text-muted">{c.code}</div>
-                      <span
-                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
-                        }`}
-                      >
-                        <CreditCard size={10} />
-                        {c.billingType === 0 ? 'Crédito' : 'Contado'}
-                      </span>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarColor(c.code)}`}>
+                      {initials(c.name, c.code)}
+                    </div>
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <div className="truncate text-sm font-medium">{c.name || `Cliente ${c.code}`}</div>
                     </div>
                   </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        c.blocked ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
+                      }`}
+                      title={c.blocked ? 'Cliente bloqueado' : 'Cliente activo'}
+                    >
+                      {c.blocked ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+                      {c.blocked ? 'Bloqueado' : 'Activo'}
+                    </span>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                      }`}
+                    >
+                      <CreditCard size={12} />
+                      {c.billingType === 0 ? 'Crédito' : 'Contado'}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
                 <div className="mt-1 flex flex-col gap-1.5 border-t border-border pt-2.5 text-xs text-muted">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <Hash size={14} className="shrink-0" />
+                    <span className="truncate font-mono text-sm font-medium text-primary">Cuenta {c.code}</span>
+                  </span>
                   {c.rtf && (
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <UserRound size={12} className="shrink-0" />
-                      <span className="truncate font-mono" title={c.rtf}>RTN {formatRtn(c.rtf)}</span>
+                      <UserRound size={14} className="shrink-0" />
+                      <span className="truncate font-mono text-sm" title={c.rtf}>RTN {formatRtn(c.rtf)}</span>
                     </span>
                   )}
                   {c.phone && (

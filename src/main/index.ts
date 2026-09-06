@@ -57,8 +57,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   ipcMain.handle('print:ticket', async (_event, payload: { backendUrl: string; printerPath: string; ticket: TicketData }) => {
-    await printTicket(payload.backendUrl, payload.printerPath, payload.ticket)
-    return { ok: true }
+    return printTicket(payload.backendUrl, payload.printerPath, payload.ticket)
   })
 
   ipcMain.on('app:quit', () => {

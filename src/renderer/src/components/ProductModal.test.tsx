@@ -10,7 +10,7 @@ vi.mock('../api/client', () => ({
     productByBarcode: vi.fn(),
     productByCode: vi.fn()
   },
-  getBackendUrl: () => 'http://localhost:5009'
+  getBackendUrl: () => 'http://localhost:5012'
 }))
 
 import { api } from '../api/client'
@@ -90,5 +90,46 @@ describe('ProductModal', () => {
     await user.clear(input)
     await user.type(input, 'NOEXISTE{Enter}')
     expect(await screen.findByText(/No hay producto con código/)).toBeInTheDocument()
+  })
+
+  it('no permite agregar productos de la categoría Combustibles', async () => {
+    const user = userEvent.setup()
+    const combustibles: Product[] = [
+      {
+        code: 'F1',
+        description: 'GASOLINA SUPER',
+        unitPrice: 110,
+        category: 'COMBUSTIBLES',
+        vatGroup: 'EXENTO',
+        priceIncludesVat: true
+      }
+    ]
+    ;(api.products as any).mockResolvedValue(combustibles)
+    const { onAdd } = setup()
+
+    const card = await screen.findByText('GASOLINA SUPER')
+    const button = card.closest('button')
+    expect(button).toBeDisabled()
+    await user.click(card)
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(screen.getByText(/Desde el controlador/)).toBeInTheDocument()
+    expect(screen.getByText(/Los combustibles no se envían al carrito/)).toBeInTheDocument()
+  })
+
+  it('muestra aviso si un código de barras es de combustible', async () => {
+    const user = userEvent.setup()
+    const { onAdd } = setup()
+    ;(api.productByBarcode as any).mockResolvedValue({
+      code: 'F2',
+      description: 'GASOLINA DIESEL',
+      unitPrice: 105,
+      category: 'COMBUSTIBLES',
+      vatGroup: 'EXENTO',
+      priceIncludesVat: true
+    })
+    const input = screen.getByPlaceholderText(/Escanee o escriba/)
+    await user.type(input, '123{Enter}')
+    expect(await screen.findByText(/se agregan desde el controlador/)).toBeInTheDocument()
+    expect(onAdd).not.toHaveBeenCalled()
   })
 })

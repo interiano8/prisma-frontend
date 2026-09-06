@@ -50,42 +50,49 @@ export default function CustomerModal(props: Props) {
         <div className="min-h-0 flex-1 overflow-auto">
           {props.results.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted">
-              {props.query ? 'Sin resultados' : 'Escriba para buscar clientes'}
+              {props.query ? 'Sin resultados' : 'Sin clientes recientes'}
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              {props.results.map((c) => (
-                <button
-                  key={c.code}
-                  disabled={!c.rtf}
-                  className={`btn-press flex w-full items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left text-sm ${
-                    c.rtf ? 'hover:border-accent/40' : 'opacity-50'
-                  }`}
-                  onClick={() => props.onSelect(c)}
-                >
-                  <span className="flex flex-1 flex-col leading-tight">
-                    <span className="truncate">{c.name}</span>
-                    <span className="font-mono text-xs text-muted">
-                      Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {!c.rtf && (
-                      <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
-                        Sin RTN
+            <>
+              {!props.query && (
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  Recientes
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                {props.results.map((c) => (
+                  <button
+                    key={c.code}
+                    disabled={!c.rtf}
+                    className={`btn-press flex w-full items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left text-sm ${
+                      c.rtf ? 'hover:border-accent/40' : 'opacity-50'
+                    }`}
+                    onClick={() => props.onSelect(c)}
+                  >
+                    <span className="flex flex-1 flex-col leading-tight">
+                      <span className="truncate">{c.name}</span>
+                      <span className="font-mono text-xs text-muted">
+                        Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
                       </span>
-                    )}
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
-                      }`}
-                    >
-                      {c.billingType === 0 ? 'Crédito' : 'Contado'}
                     </span>
-                  </span>
-                </button>
-              ))}
-            </div>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {!c.rtf && (
+                        <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
+                          Sin RTN
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                        }`}
+                      >
+                        {c.billingType === 0 ? 'Crédito' : 'Contado'}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -48,8 +48,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   FIDELIZACION: 'Fidelización'
 }
 
-export const CHANGE_ALLOWED_CODES = new Set(['1002', '1006'])
-
 export function groupPaymentMethods(
   methods: PaymentMethod[]
 ): [string, PaymentMethod[]][] {

@@ -73,9 +73,9 @@ function baseProps(overrides: Partial<Parameters<typeof CartPanel>[0]> = {}) {
 describe('CartPanel', () => {
   it('muestra botones de cliente cuando no hay cliente', () => {
     render(<CartPanel {...baseProps()} />)
-    expect(screen.getByRole('button', { name: /CF/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Cliente RTN/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Cliente Crédito/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Consumidor Final/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Por RTN/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Crédito/ })).toBeInTheDocument()
   })
 
   it('muestra el cliente seleccionado con RTN formateado', () => {
@@ -143,11 +143,11 @@ describe('CartPanel', () => {
         {...baseProps({ hasShift: false, onSetConsumidorFinal, onOpenCustomerMode, onOpenShift })}
       />
     )
-    await user.click(screen.getByRole('button', { name: 'CF' }))
+    await user.click(screen.getByRole('button', { name: /Consumidor Final/ }))
     expect(onSetConsumidorFinal).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: /Cliente RTN/ }))
+    await user.click(screen.getByRole('button', { name: /Por RTN/ }))
     expect(onOpenCustomerMode).toHaveBeenCalledWith('rtn')
-    await user.click(screen.getByRole('button', { name: /Cliente Crédito/ }))
+    await user.click(screen.getByRole('button', { name: /Crédito/ }))
     expect(onOpenCustomerMode).toHaveBeenCalledWith('credito')
     await user.click(screen.getByRole('button', { name: /Fidelización/ }))
     expect(onOpenCustomerMode).toHaveBeenCalledWith('fidelizacion')

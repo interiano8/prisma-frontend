@@ -1,0 +1,242 @@
+{
+  "electron.vite.config.ts": {
+    "mtime": 1786750485.8743684,
+    "ast_hash": "9b40edaf2ef20a93d8dc4397a3861e21",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1786770369.7388804,
+    "ast_hash": "f493f042f1b63fb5b4e00e89b7de229e",
+    "semantic_hash": ""
+  },
+  "postcss.config.js": {
+    "mtime": 1786770404.4730175,
+    "ast_hash": "aa810dc2b09f4e6cefdd4e4c95a1b852",
+    "semantic_hash": ""
+  },
+  "release/linux-unpacked/vk_swiftshader_icd.json": {
+    "mtime": 1786771097.8746479,
+    "ast_hash": "c85ec806c575220afc0c3378c6653dd8",
+    "semantic_hash": ""
+  },
+  "src/main/index.ts": {
+    "mtime": 1786780951.204373,
+    "ast_hash": "b90df09f7be9b17490719403a57d053b",
+    "semantic_hash": ""
+  },
+  "src/main/printer.ts": {
+    "mtime": 1786750519.4645708,
+    "ast_hash": "c17c06165df219b2e5cfa7ea97017ca8",
+    "semantic_hash": ""
+  },
+  "src/preload/index.d.ts": {
+    "mtime": 1786780981.743398,
+    "ast_hash": "c4e8a539d0568fd5af764d47fc644102",
+    "semantic_hash": ""
+  },
+  "src/preload/index.ts": {
+    "mtime": 1786780967.8423862,
+    "ast_hash": "d541d72b3702219f9b913c201974b140",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/App.tsx": {
+    "mtime": 1787282003.1000903,
+    "ast_hash": "2ca5222589a985b687db293d8f9d7858",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/api/client.ts": {
+    "mtime": 1787282447.9063332,
+    "ast_hash": "2a139dead3fea54e51a202ec883dc9fa",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/api/types.ts": {
+    "mtime": 1787203368.2043447,
+    "ast_hash": "95da8dfb0cca5cc3c1bb10041334eaba",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/ConfirmDialog.tsx": {
+    "mtime": 1786781186.0286043,
+    "ast_hash": "deb5f3050eec52d89ba26edad5257bd2",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/MediaPlayer.tsx": {
+    "mtime": 1787196472.133509,
+    "ast_hash": "5eb20b849d7351711eddd4878ac47717",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/PrismaLogo.tsx": {
+    "mtime": 1786771567.0134358,
+    "ast_hash": "1417a6ac57411011af680ab98199b93f",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/ProductModal.tsx": {
+    "mtime": 1787203371.2873466,
+    "ast_hash": "d035572b357ababfe14f260f496fcaa4",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/SurtidorIcon.tsx": {
+    "mtime": 1786774168.3517137,
+    "ast_hash": "1837550ec021bd2ab2b6c2c2c79dc74e",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/components/VirtualKeyboard.tsx": {
+    "mtime": 1787184506.6409948,
+    "ast_hash": "4ed4a4a21c88339a4e9cb504eb260b74",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/env.d.ts": {
+    "mtime": 1786750546.4547238,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/format.ts": {
+    "mtime": 1787021148.329468,
+    "ast_hash": "aa9ab0c176901fc4097152fcf7781ff4",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/main.tsx": {
+    "mtime": 1786777185.5570514,
+    "ast_hash": "96a3e37b2b785c4a2a8bdb9b6dd84811",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/printing.ts": {
+    "mtime": 1787146708.6460798,
+    "ast_hash": "ac3c3728500f4d51f7b79cf002b5b987",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/ConfigScreen.tsx": {
+    "mtime": 1787193539.6376624,
+    "ast_hash": "9a0a5869cb87f632a5f61cd3a28a7b5e",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/CustomersScreen.tsx": {
+    "mtime": 1787281290.4774194,
+    "ast_hash": "8cf382d69b7a0c8a0a28aa2b0885c0c2",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/LealScreen.tsx": {
+    "mtime": 1786990933.1898377,
+    "ast_hash": "dd5de76ca5453f9dd01952a82f38c31a",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/Login.tsx": {
+    "mtime": 1786782377.199695,
+    "ast_hash": "ed1529fdb68ee6687de13275415c6b78",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/PosScreen.tsx": {
+    "mtime": 1787285283.9881134,
+    "ast_hash": "188a7d73caadf2e683e867c12b8c877d",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/ReprintScreen.tsx": {
+    "mtime": 1786990785.47226,
+    "ast_hash": "e7d2ba6240e3f27c2e027b496371b131",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/ShiftScreen.tsx": {
+    "mtime": 1786770506.257623,
+    "ast_hash": "dd88cc789f9a3f3c7c3c2218ce053dba",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/store.tsx": {
+    "mtime": 1787282010.891162,
+    "ast_hash": "ea66ff38b0b5c3b60a3562eaf2bd51d6",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/theme.ts": {
+    "mtime": 1786779991.9014192,
+    "ast_hash": "51beba01f02f4b0f5ee5eaa17bbf7298",
+    "semantic_hash": ""
+  },
+  "tailwind.config.js": {
+    "mtime": 1786779966.2455401,
+    "ast_hash": "9bf0d2074908eb4975e57188f7e09cbf",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1786750491.0244002,
+    "ast_hash": "f78ff8c2e2efb59fcf218eac57774d94",
+    "semantic_hash": ""
+  },
+  "tsconfig.node.json": {
+    "mtime": 1786750496.6534348,
+    "ast_hash": "006d83be890cd2cf6f914bb7e7d6e960",
+    "semantic_hash": ""
+  },
+  "tsconfig.web.json": {
+    "mtime": 1786750502.5494704,
+    "ast_hash": "c931a2fbb6b9d91132b85cfd279ba225",
+    "semantic_hash": ""
+  },
+  "electron-builder.yml": {
+    "mtime": 1786771079.360292,
+    "ast_hash": "041fcc95467cabc055d7f1320c622a61",
+    "semantic_hash": ""
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1786751058.4605093,
+    "ast_hash": "227f0009df3aecee3bbeed3e9a275400",
+    "semantic_hash": ""
+  },
+  "release/builder-debug.yml": {
+    "mtime": 1786771219.0642748,
+    "ast_hash": "772c295732af81069c46e6b651f40f49",
+    "semantic_hash": ""
+  },
+  "release/linux-unpacked/LICENSE.electron.txt": {
+    "mtime": 1786771097.9186487,
+    "ast_hash": "4d42118d35941e0f664dddbd83f633c5",
+    "semantic_hash": ""
+  },
+  "release/linux-unpacked/LICENSES.chromium.html": {
+    "mtime": 1786771097.9006484,
+    "ast_hash": "d2e60edd9bdac2e3bcd4ced52bc42205",
+    "semantic_hash": ""
+  },
+  "src/renderer/index.html": {
+    "mtime": 1786780027.1012661,
+    "ast_hash": "e5c06688df05006b29fd26c1f42edc39",
+    "semantic_hash": ""
+  },
+  "iconos/Constancia de Antecedentes Penales-2026.pdf": {
+    "mtime": 1786997796.3914812,
+    "ast_hash": "92eba1640c393eace465054bd3232973",
+    "semantic_hash": ""
+  },
+  "iconos/config-prisma.svg": {
+    "mtime": 1786768642.875047,
+    "ast_hash": "ca5e17ef120c2b278036611daa44edd4",
+    "semantic_hash": ""
+  },
+  "iconos/prisma-carpeta.svg": {
+    "mtime": 1786768481.828604,
+    "ast_hash": "e869d47889010ec9d379bba200f90db0",
+    "semantic_hash": ""
+  },
+  "iconos/prisma.svg": {
+    "mtime": 1786768319.6192312,
+    "ast_hash": "2def59eadd21f108d7b9c87c575be4b8",
+    "semantic_hash": ""
+  },
+  "iconos/surtidor.svg": {
+    "mtime": 1786774000.1384444,
+    "ast_hash": "6f945b965d67ab9bba8a8ee9a266376f",
+    "semantic_hash": ""
+  },
+  "release/linux-unpacked/resources/resources/icon.png": {
+    "mtime": 1786771099.7689555,
+    "ast_hash": "7c80b07f7e19c9b18b36a840c01f2681",
+    "semantic_hash": ""
+  },
+  "resources/icon.png": {
+    "mtime": 1786771052.318799,
+    "ast_hash": "7c80b07f7e19c9b18b36a840c01f2681",
+    "semantic_hash": ""
+  },
+  "src/renderer/src/screens/DocumentsScreen.tsx": {
+    "mtime": 1787285811.092975,
+    "ast_hash": "219d2f595f857a3fb6eeb5cf931bdb55",
+    "semantic_hash": ""
+  }
+}

@@ -3,10 +3,11 @@ import { api } from '../api/client'
 import type { CartItem, Customer, Dispenser, PumpTransaction } from '../api/types'
 import { useApp } from '../store'
 import { printSaleTicket } from '../printing'
-import { X } from 'lucide-react'
+import { X, CheckCircle2 } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ProductModal from '../components/ProductModal'
 import MediaPlayer from '../components/MediaPlayer'
+import CategoryShortcuts from '../components/CategoryShortcuts'
 import CodeInputRow from '../components/CodeInputRow'
 import PumpsBlock from '../components/PumpsBlock'
 import CartPanel from '../components/CartPanel'
@@ -26,7 +27,10 @@ export default function PosScreen() {
   const fmt = (n: number | string) => fmtValue(n, store.moneda)
 
   const [productModalOpen, setProductModalOpen] = useState(false)
+  const [categoryOpen, setCategoryOpen] = useState<{ codigo: string; descripcion: string | null } | null>(null)
+  const [visualizacion, setVisualizacion] = useState<'multimedia' | 'categorias'>('multimedia')
   const [message, setMessage] = useState('')
+  const [saleDone, setSaleDone] = useState<{ invoiceNo: string; change: number } | null>(null)
 
   const [dispensers, setDispensers] = useState<Dispenser[]>([])
   const [showAllPumps, setShowAllPumps] = useState(false)
@@ -40,7 +44,7 @@ export default function PosScreen() {
 
   const cartApi = useCart({
     customerCode: customer?.code ?? null,
-    isConsumidorFinal: customer?.name === 'CONSUMIDOR FINAL',
+    isConsumidorFinal: customer?.code === store.noConsumidorFinal,
     fetchDiscounts: api.calculateDiscounts
   })
 
@@ -52,7 +56,10 @@ export default function PosScreen() {
     hasShift,
     customer,
     onCustomerChange: setCustomer,
-    onSaleComplete: () => cartApi.clear(),
+    onSaleComplete: (invoiceNo, change) => {
+      cartApi.clear()
+      setSaleDone({ invoiceNo, change })
+    },
     setMessage,
     printTicket: printSaleTicket
   })
@@ -113,6 +120,8 @@ export default function PosScreen() {
     setCustomerQuery,
     setCustomerResults,
     setCustomerModalOpen,
+    esTicket,
+    setEsTicket,
     checkout
   } = checkoutApi
 
@@ -121,6 +130,19 @@ export default function PosScreen() {
     const t = setTimeout(() => setMessage(''), 3000)
     return () => clearTimeout(t)
   }, [message])
+
+  useEffect(() => {
+    let mounted = true
+    api
+      .getPosConfig(store.posNumber)
+      .then((c) => {
+        if (mounted) setVisualizacion(c.visualizacion === 'categorias' ? 'categorias' : 'multimedia')
+      })
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [store.posNumber])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -218,7 +240,10 @@ export default function PosScreen() {
           onOpenProducts={() => setProductModalOpen(true)}
         />
 
-        <MediaPlayer />
+        {visualizacion === 'multimedia' && <MediaPlayer />}
+        {visualizacion === 'categorias' && (
+          <CategoryShortcuts onOpenCategory={setCategoryOpen} />
+        )}
 
         <PumpsBlock
           pumps={visiblePumps}
@@ -298,9 +323,28 @@ export default function PosScreen() {
         />
       )}
 
+      {checkoutApi.alertModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="card-surface w-[400px] p-6 animate-in fade-in-0 zoom-in-95">
+            <h3 className="text-lg font-semibold">{checkoutApi.alertModal.title}</h3>
+            <p className="mt-2 whitespace-pre-line text-sm text-muted">{checkoutApi.alertModal.message}</p>
+            <div className="mt-5 flex gap-2">
+              <button
+                className="btn-press flex-1 rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
+                onClick={checkoutApi.closeAlertModal}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CheckoutModal
         open={checkoutOpen}
         billingType={billingType}
+        esTicket={esTicket}
+        onToggleTicket={() => setEsTicket((v) => !v)}
         totals={totals}
         availableMethods={availableMethods}
         payments={payments}
@@ -344,19 +388,59 @@ export default function PosScreen() {
         }}
       />
 
-      <ProductModal
-        open={productModalOpen}
-        onClose={() => setProductModalOpen(false)}
-        onAdd={(p) => addProduct(p)}
+<ProductModal
+        open={productModalOpen || !!categoryOpen}
+        onClose={() => {
+          setProductModalOpen(false)
+          setCategoryOpen(null)
+        }}
+        onAdd={addProduct}
         moneda={store.moneda}
+        category={categoryOpen?.codigo}
+        categoryLabel={categoryOpen?.descripcion}
       />
 
-      {message && !checkoutOpen && (
+      {message && !checkoutOpen && !saleDone && (
         <div className="fixed bottom-5 right-5 max-w-md rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-xl animate-in fade-in-0 zoom-in-95">
           <div className="flex items-start justify-between gap-3">
             <span className="flex-1">{message}</span>
             <button className="btn-press shrink-0 text-muted hover:text-primary" onClick={() => setMessage('')}>
               <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {saleDone && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative flex flex-col items-center gap-4 rounded-2xl bg-card px-14 py-10 text-center shadow-2xl animate-in fade-in-0 zoom-in-95">
+            <button
+              className="btn-press absolute right-3 top-3 rounded-lg p-1.5 text-muted hover:bg-card hover:text-primary"
+              onClick={() => setSaleDone(null)}
+              title="Cerrar"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success">
+              <CheckCircle2 size={48} className="animate-in zoom-in-50" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-primary">¡Venta completada!</div>
+              <div className="mt-1 font-mono text-sm text-muted">Factura {saleDone.invoiceNo}</div>
+            </div>
+            {saleDone.change > 0 && (
+              <div className="mt-2 w-full rounded-xl border border-success/30 bg-success/10 px-6 py-4">
+                <div className="text-sm font-medium text-success">Cambio a entregar</div>
+                <div className="mt-1 font-mono text-3xl font-bold tabular-nums text-primary">
+                  {fmt(saleDone.change)}
+                </div>
+              </div>
+            )}
+            <button
+              className="btn-press mt-1 w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
+              onClick={() => setSaleDone(null)}
+            >
+              Cerrar
             </button>
           </div>
         </div>

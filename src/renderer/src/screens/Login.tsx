@@ -75,6 +75,8 @@ export default function Login() {
   }
 
   function handleSubmit() {
+    const s = server.trim()
+    if (s) setBackendUrl(s)
     if (rfid.trim()) {
       handleRfidLogin()
     } else {
@@ -181,7 +183,7 @@ export default function Login() {
               className="input-base w-full"
               value={server}
               onChange={(e) => setServer(e.target.value)}
-              placeholder="http://localhost:5009"
+              placeholder="http://localhost:5012"
             />
 
             <label className="label-base mt-3">Tienda</label>

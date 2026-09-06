@@ -1,9 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
 import type { LoginResponse, StoreConfig, PaymentMethod } from './api/types'
-import { getBackendUrl, setBackendUrl as persistBackendUrl } from './api/client'
+import { getBackendUrl, setBackendUrl as persistBackendUrl, clearSessionToken } from './api/client'
 import { getStoredTheme, applyTheme, getStoredAccent, applyAccent, Theme } from './theme'
+import { setServerTimezone } from './lib/server-tz'
 
-export type View = 'pos' | 'customers' | 'shift' | 'documents' | 'config' | 'leal'
+export type View =
+  | 'pos'
+  | 'customers'
+  | 'shift'
+  | 'documents'
+  | 'config'
+  | 'leal'
+  | 'pendientes'
 
 interface AppState {
   session: LoginResponse | null
@@ -42,8 +50,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applyAccent(accent)
   }, [accent])
 
-  const login = useCallback((s: LoginResponse) => setSession(s), [])
-  const logout = useCallback(() => setSession(null), [])
+  const login = useCallback((s: LoginResponse) => {
+    setServerTimezone(s.storeConfig?.serverTimezone)
+    setSession(s)
+  }, [])
+  const logout = useCallback(() => {
+    clearSessionToken()
+    setSession(null)
+  }, [])
   const setBackendUrl = useCallback((url: string) => {
     persistBackendUrl(url)
     setBackendUrlState(url)
