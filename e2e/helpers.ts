@@ -76,7 +76,7 @@ export async function addProductByCode(page: Page, code: string): Promise<void> 
 }
 
 export async function selectConsumidorFinal(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'CF' }).click()
+  await page.getByRole('button', { name: /Consumidor Final/ }).click()
 }
 
 // Abre el cobro, agrega un pago en efectivo por el total y confirma.
