@@ -143,4 +143,32 @@ describe('CheckoutModal', () => {
     const confirm = screen.getByRole('button', { name: /Procesando…/ })
     expect(confirm).toBeDisabled()
   })
+
+  it('muestra equivalencia USD con tasa cuando un pago es dólar', () => {
+    const usdPayment: CartPayment = {
+      code: '1004',
+      method: 'DOLAR',
+      description: 'DOLAR',
+      amount: 20,
+      moneda: 'USD',
+      tasaCambio: 25,
+      montoIngresado: 20
+    }
+    render(<CheckoutModal {...baseProps({ payments: [usdPayment as any] })} />)
+    expect(screen.getByText(/a tasa 25/)).toBeInTheDocument()
+  })
+
+  it('muestra el cambio en dólares cuando hay pago USD y cambio', () => {
+    const usdPayment: CartPayment = {
+      code: '1004',
+      method: 'DOLAR',
+      description: 'DOLAR',
+      amount: 20,
+      moneda: 'USD',
+      tasaCambio: 25,
+      montoIngresado: 20
+    }
+    render(<CheckoutModal {...baseProps({ payments: [usdPayment as any], change: 50 })} />)
+    expect(screen.getByText(/\$2.00/)).toBeInTheDocument()
+  })
 })
