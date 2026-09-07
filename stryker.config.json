@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "mutate": [
+    "src/renderer/src/lib/pos-cart.ts",
+    "src/renderer/src/lib/pos-logic.ts"
+  ],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": 80
+  },
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  }
+}
