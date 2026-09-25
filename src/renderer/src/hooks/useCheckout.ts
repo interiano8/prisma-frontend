@@ -14,6 +14,17 @@ import { api } from '../api/client'
 
 export type CustomerMode = 'none' | 'cf' | 'rtn' | 'credito' | 'fidelizacion'
 
+export interface AlertModalState {
+  title: string
+  message: string
+  confirmText?: string
+  cancelText?: string
+  secondaryText?: string
+  onConfirm?: () => void
+  onCancel?: () => void
+  onSecondary?: () => void
+}
+
 export interface UseCheckoutOptions {
   store: StoreConfig
   session: LoginResponse
@@ -59,7 +70,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
   const [comment, setComment] = useState('')
 
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false)
-  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null)
+  const [alertModal, setAlertModal] = useState<AlertModalState | null>(null)
   const closeAlertModal = () => setAlertModal(null)
   const [formRtn, setFormRtn] = useState('')
   const [formName, setFormName] = useState('')
@@ -240,7 +251,10 @@ export function useCheckout(opts: UseCheckoutOptions) {
     )
   }
 
-  async function checkout() {
+  async function checkout(options?: {
+    permitirFacturarSinAcumular?: boolean
+    omitirAcumulacion?: boolean
+  }) {
     if (!opts.customer) {
       opts.setMessage('Seleccione un cliente.')
       return
@@ -344,7 +358,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
         orden: orden.trim(),
         km: kmValue.trim() ? `${kmValue.trim()} ${kmUnit}` : '',
         chofer: chofer.trim(),
-        comment: comment.trim()
+        comment: comment.trim(),
+        permitirFacturarSinAcumular: options?.permitirFacturarSinAcumular,
+        omitirAcumulacion: options?.omitirAcumulacion
       })
 
       const ticketInput: PrintTicketInput = {
@@ -396,7 +412,32 @@ export function useCheckout(opts: UseCheckoutOptions) {
       setCheckoutOpen(false)
       opts.onSaleComplete(result.invoiceNo, change)
     } catch (e: any) {
-      opts.setMessage(errMsg(e))
+      const message = errMsg(e)
+      const isLealAccumulationError =
+        message.toLowerCase().includes('acumul') &&
+        message.toLowerCase().includes('leal')
+
+      if (isLealAccumulationError) {
+        setAlertModal({
+          title: 'Error al acumular puntos en Leal',
+          message: `${message}\n\n¿Desea reintentar la acumulación o emitir la factura sin acumular puntos?`,
+          confirmText: 'Reintentar',
+          onConfirm: () => {
+            closeAlertModal()
+            void checkout()
+          },
+          secondaryText: 'Facturar sin acumular',
+          onSecondary: () => {
+            closeAlertModal()
+            void checkout({ permitirFacturarSinAcumular: true })
+          },
+          cancelText: 'Cancelar',
+          onCancel: () => {
+            closeAlertModal()
+          }
+        })
+      }
+      opts.setMessage(message)
     } finally {
       setBusy(false)
     }

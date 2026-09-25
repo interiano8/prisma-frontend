@@ -171,6 +171,7 @@ export interface CartPayment {
   tasaCambio?: number
   montoIngresado?: number
   generaCambio?: boolean
+  lealData?: any
 }
 
 export interface CreateInvoicePayload {
@@ -193,6 +194,14 @@ export interface CreateInvoicePayload {
   orden?: string
   placa?: string
   chofer?: string
+  lealCustomerUid?: string
+  lealCustomerName?: string
+  lealCustomerDni?: string
+  lealIdAleatorioAcum?: string
+  lealIdAleatorioRed?: string
+  lealPin?: string
+  permitirFacturarSinAcumular?: boolean
+  omitirAcumulacion?: boolean
 }
 
 export interface InvoiceCreateResult {

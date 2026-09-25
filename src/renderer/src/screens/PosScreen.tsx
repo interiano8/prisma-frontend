@@ -354,15 +354,34 @@ export default function PosScreen() {
 
       {checkoutApi.alertModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="card-surface w-[400px] p-6 animate-in fade-in-0 zoom-in-95">
+          <div className="card-surface w-[450px] max-w-[90vw] p-6 animate-in fade-in-0 zoom-in-95">
             <h3 className="text-lg font-semibold">{checkoutApi.alertModal.title}</h3>
             <p className="mt-2 whitespace-pre-line text-sm text-muted">{checkoutApi.alertModal.message}</p>
-            <div className="mt-5 flex gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              {checkoutApi.alertModal.onSecondary && (
+                <button
+                  type="button"
+                  className="btn-press rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-hover"
+                  onClick={checkoutApi.alertModal.onSecondary}
+                >
+                  {checkoutApi.alertModal.secondaryText || 'Facturar sin acumular'}
+                </button>
+              )}
+              {checkoutApi.alertModal.onCancel && (
+                <button
+                  type="button"
+                  className="btn-press rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-muted hover:text-foreground"
+                  onClick={checkoutApi.alertModal.onCancel}
+                >
+                  {checkoutApi.alertModal.cancelText || 'Cancelar'}
+                </button>
+              )}
               <button
-                className="btn-press flex-1 rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
-                onClick={checkoutApi.closeAlertModal}
+                type="button"
+                className="btn-press flex-1 min-w-[100px] rounded-lg bg-accent py-2.5 px-4 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
+                onClick={checkoutApi.alertModal.onConfirm || checkoutApi.closeAlertModal}
               >
-                Aceptar
+                {checkoutApi.alertModal.confirmText || 'Aceptar'}
               </button>
             </div>
           </div>
