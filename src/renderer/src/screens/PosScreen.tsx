@@ -18,7 +18,8 @@ import PumpModal from '../components/PumpModal'
 import { useCart } from '../hooks/useCart'
 import { useCheckout } from '../hooks/useCheckout'
 import { useBarcodeScan } from '../hooks/useBarcodeScan'
-import { fmtValue } from '../lib/pos-logic'
+import { usePumpSocket, type PumpSocketStatus, type PumpStatusMessage } from '../hooks/usePumpSocket'
+import { fmtValue, applyWsState, mergeWsStates, filterMyPumps } from '../lib/pos-logic'
 
 export default function PosScreen() {
   const { session, setView, paymentMethods, backendUrl } = useApp()
@@ -37,6 +38,8 @@ export default function PosScreen() {
   const [selectedPump, setSelectedPump] = useState<Dispenser | null>(null)
   const [pumpTransactions, setPumpTransactions] = useState<PumpTransaction[]>([])
   const [pumpTxLoading, setPumpTxLoading] = useState(false)
+  // Último estado WS por bomba (para no perder el snapshot si llega antes de la carga).
+  const wsStates = useRef(new Map<number, PumpStatusMessage>())
 
   const hasShift = !!session?.shiftInfo?.Shift
 
@@ -168,23 +171,45 @@ export default function PosScreen() {
   useEffect(() => {
     if (!store.mostrarBombas) return
     let mounted = true
-    async function poll() {
-      try {
-        const d = await api.dispensers()
-        if (mounted) setDispensers(d)
-      } catch {
+    // Carga única del mapeo bomba→POS/productos (sin timer). El estado en vivo
+    // llega por el WebSocket de wayne. Se mergea con los estados WS acumulados
+    // (por si el snapshot llegó antes de esta carga).
+    api
+      .dispensers()
+      .then((d) => {
+        if (!mounted) return
+        setDispensers(mergeWsStates(d, wsStates.current))
+      })
+      .catch(() => {
         // ignore
-      }
-    }
-    poll()
-    const t = setInterval(poll, 5000)
+      })
     return () => {
       mounted = false
-      clearInterval(t)
     }
   }, [store.mostrarBombas])
 
-  const myPumps = dispensers.filter((d) => d.pos === store.posNumber)
+  const [conexionBombas, setConexionBombas] = useState<PumpSocketStatus>('desconectado')
+  const socketStatus = usePumpSocket(
+    store.urlControlador ?? '',
+    store.claveControlador ?? '',
+    (msg) => {
+      // Acumular siempre el último estado por bomba (aunque el dispenser aún no exista).
+      wsStates.current.set(msg.PumpID, msg)
+      setDispensers((prev) => {
+        const idx = prev.findIndex((d) => d.pumpId === msg.PumpID)
+        if (idx < 0) return prev
+        const next = [...prev]
+        next[idx] = applyWsState(next[idx], msg)
+        return next
+      })
+    },
+  )
+  useEffect(() => {
+    setConexionBombas(socketStatus)
+  }, [socketStatus])
+
+  const caras = Array.isArray(store.caras) ? store.caras : []
+  const myPumps = filterMyPumps(dispensers, caras)
   const visiblePumps = showAllPumps ? dispensers : myPumps
 
   const availableMethods = useMemo(
@@ -247,11 +272,14 @@ export default function PosScreen() {
 
         <PumpsBlock
           pumps={visiblePumps}
+          allPumpIds={dispensers.map((d) => d.pumpId)}
+          myPumpIds={myPumps.map((d) => d.pumpId)}
           mostrarBombas={store.mostrarBombas}
           ocultarBotonOtrasBombas={store.ocultarBotonOtrasBombas}
           showAll={showAllPumps}
           onToggleAll={() => setShowAllPumps((v) => !v)}
           onOpenPump={openPumpModal}
+          conexionEstado={conexionBombas}
         />
       </div>
 

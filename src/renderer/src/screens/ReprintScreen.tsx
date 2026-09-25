@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, getBackendUrl } from '../api/client'
 import { useApp } from '../store'
+import { buildEncabezado } from '../lib/documento-renderer'
 import { Search, Printer, SlidersHorizontal } from 'lucide-react'
 
 export default function ReprintScreen() {
@@ -49,7 +50,24 @@ export default function ReprintScreen() {
   async function reprint() {
     if (!selected) return
     const linesOut: { text: string; align?: 'left' | 'center' | 'right'; bold?: boolean; size?: 'normal' | 'large' }[] = []
-    linesOut.push({ text: store.storeName || 'Prisma', align: 'center', bold: true, size: 'large' })
+    const columns = Number(store.printerConfig?.columns) || 48
+    linesOut.push(
+      ...buildEncabezado(
+        {
+          storeName: store.storeName || store.name,
+          name: store.name,
+          address: store.address,
+          address1: store.address1,
+          address2: store.address2,
+          address3: store.address3,
+          rtn: store.rtn,
+          phone: store.phone,
+          email: store.email,
+          casaMatriz: store.casaMatriz
+        },
+        columns
+      )
+    )
     linesOut.push({ text: 'REIMPRESIÓN', align: 'center', bold: true })
     linesOut.push({ text: `No: ${selected['POS Sales Doc_ No_'] || ''}`, align: 'center' })
     linesOut.push({ text: `Cliente: ${selected['Cust_ Name'] || ''}` })

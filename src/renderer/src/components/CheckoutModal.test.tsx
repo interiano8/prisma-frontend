@@ -148,7 +148,6 @@ describe('CheckoutModal', () => {
     const usdPayment: CartPayment = {
       code: '1004',
       method: 'DOLAR',
-      description: 'DOLAR',
       amount: 20,
       moneda: 'USD',
       tasaCambio: 25,
@@ -162,7 +161,6 @@ describe('CheckoutModal', () => {
     const usdPayment: CartPayment = {
       code: '1004',
       method: 'DOLAR',
-      description: 'DOLAR',
       amount: 20,
       moneda: 'USD',
       tasaCambio: 25,

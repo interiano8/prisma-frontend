@@ -54,8 +54,18 @@ export default function PumpModal(props: Props) {
 
         <div className="min-h-0 flex-1 overflow-auto">
           {props.loading ? (
-            <div className="flex h-40 items-center justify-center text-base text-muted">
-              Cargando transacciones…
+            <div className="flex flex-col gap-2" role="status" aria-label="Cargando transacciones">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="card-surface flex animate-pulse items-center gap-4 rounded-xl border border-border-strong p-4"
+                >
+                  <div className="h-5 w-16 rounded bg-muted/20" />
+                  <div className="h-4 w-32 rounded bg-muted/20" />
+                  <div className="ml-auto h-6 w-20 rounded bg-muted/20" />
+                </div>
+              ))}
+              <span className="sr-only">Cargando transacciones…</span>
             </div>
           ) : props.transactions.length === 0 ? (
             <div className="flex h-40 items-center justify-center text-base text-muted">
@@ -115,6 +125,9 @@ export default function PumpModal(props: Props) {
                             {fmtFechaHora(t.fecha, t.hora)}
                           </span>
                         )}
+                        {t.shiftId ? (
+                          <span className="font-mono text-xs text-muted">Turno Controlador {t.shiftId}</span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5">

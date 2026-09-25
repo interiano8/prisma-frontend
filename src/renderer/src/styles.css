@@ -122,3 +122,49 @@
     margin-bottom: 0.25rem;
   }
 }
+
+/* Onda de líquido para el botón de bomba en despacho (fuelling). */
+@keyframes pump-wave {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: -64px;
+  }
+}
+
+.pump-wave {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='20' viewBox='0 0 64 20'%3E%3Cpath d='M0 10 Q16 0 32 10 T64 10 V20 H0 Z' fill='%230070f3'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 64px 100%;
+  animation: pump-wave 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pump-wave {
+    animation: none;
+  }
+}
+
+/* Arco giratorio para el estado "Arrancando" (starting). */
+@keyframes pump-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pump-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(251 191 36 / 0.35);
+  border-top-color: rgb(251 191 36);
+  border-radius: 9999px;
+  animation: pump-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pump-spinner {
+    animation: none;
+  }
+}

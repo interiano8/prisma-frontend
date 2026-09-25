@@ -1,4 +1,5 @@
-import type { PaymentMethod, PumpTransaction } from '../api/types'
+import type { Dispenser, DispenserState, PaymentMethod, PumpTransaction } from '../api/types'
+import type { PumpStatusMessage } from '../hooks/usePumpSocket'
 
 export function fmtValue(n: number | string, moneda?: string): string {
   const value = Number(n)
@@ -26,6 +27,70 @@ export function fmtQty(n: number): string {
   return Number(n).toFixed(6)
 }
 
+/** Formatea un volumen en galones y litros (6 decimales por defecto). */
+export function fmtVolumen(
+  galones: number | string | null | undefined,
+  litros: number | string | null | undefined,
+  decimals = 6,
+): string {
+  const opts = { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+  const g = Number(galones || 0).toLocaleString('en-US', opts)
+  const l = Number(litros || 0).toLocaleString('en-US', opts)
+  return `${g} gal = ${l} litros`
+}
+
+/** Formatea cantidad + unidad de medida para el resumen (undefined si no hay unidad). */
+export function fmtCantidadConUnidad(
+  cantidad: number | string | null | undefined,
+  unidadMedida: string | null | undefined,
+): string | undefined {
+  if (!unidadMedida) return undefined
+  const c = Number(cantidad || 0).toLocaleString('en-US', { maximumFractionDigits: 3 })
+  return `${c} ${unidadMedida}`
+}
+
+export interface TurnoOption {
+  value: string
+  label: string
+}
+
+/** Opciones del selector de turno: "Auto (siguiente)" + 1..N (N = turnos o 4). */
+export function turnoOptions(turnos: number | string | null | undefined): TurnoOption[] {
+  const max = Number(turnos) > 0 ? Number(turnos) : 4
+  const opts: TurnoOption[] = [{ value: '', label: 'Auto (siguiente)' }]
+  for (let i = 1; i <= max; i++) opts.push({ value: String(i), label: `Turno ${i}` })
+  return opts
+}
+
+/**
+ * Bombas del POS: filtra por las caras configuradas (`configuracion_pos.caras`,
+ * pump ids). Si no hay caras, no hay bombas del POS (sin fallback).
+ */
+export function filterMyPumps(
+  dispensers: Dispenser[],
+  caras: number[] | null | undefined,
+): Dispenser[] {
+  const owned = Array.isArray(caras) ? caras : []
+  if (owned.length === 0) return []
+  return dispensers.filter((d) => owned.includes(d.pumpId))
+}
+
+/**
+ * Formatea el mensaje de bloqueo del cierre con la lista de pendientes
+ * (caras y ventas por turno de Fusion).
+ */
+export function formatCloseBlock(
+  message: string,
+  details?: { caras?: string[]; ventas?: string[] },
+): string {
+  const rows = [
+    ...(details?.caras || []).map((c) => `  • ${c}`),
+    ...(details?.ventas || []).map((v) => `  • ${v}`),
+  ]
+  if (rows.length === 0) return message
+  return `${message}\nPendientes de facturar:\n${rows.join('\n')}`
+}
+
 export function fmtFechaHora(fecha: string, hora: string): string {
   const f =
     fecha && fecha.length === 8
@@ -46,6 +111,19 @@ export const CATEGORY_LABELS: Record<string, string> = {
   TRANSFERENCIA: 'Transferencia',
   PAGO_APP: 'Pago por App',
   FIDELIZACION: 'Fidelización'
+}
+
+/**
+ * Nombre de la forma de pago de un pago de factura (fila de invoicePayments).
+ * Prioriza el nombre real resuelto por código (MetodoPago) sobre el bucket
+ * guardado en la venta (Description) y el código crudo (Charge Method Code).
+ */
+export function paymentMethodName(p: {
+  MetodoPago?: string | null
+  Description?: string | null
+  'Charge Method Code'?: string | null
+}): string {
+  return p.MetodoPago || p.Description || p['Charge Method Code'] || 'Pago'
 }
 
 export function groupPaymentMethods(
@@ -113,4 +191,47 @@ let uidCounter = 0
 export function nextUid(): string {
   uidCounter += 1
   return `${Date.now()}-${uidCounter}`
+}
+
+/**
+ * Mapea el Status que difunde wayne por el WebSocket al estado visual del botón.
+ */
+export function mapWsStatus(
+  status: string | null | undefined,
+  hasSale: boolean,
+): DispenserState {
+  const s = (status ?? '').toLowerCase()
+  // El estado físico manda: una bomba despachando/en espera/pausa/error no se
+  // oculta por tener una venta pendiente.
+  if (s === 'fuelling' || s === 'dispensing') return 'fuelling'
+  if (s === 'starting') return 'starting'
+  if (s === 'calling' || s === 'authorized') return 'espera'
+  if (s === 'paused') return 'pausa'
+  if (s === 'error' || s === 'closed') return 'error'
+  // Solo en Idle con venta pendiente → colgada (listo para facturar).
+  if (hasSale) return 'colgada'
+  return 'idle'
+}
+
+/** Aplica un mensaje del WS a un dispenser. */
+export function applyWsState(d: Dispenser, msg: PumpStatusMessage): Dispenser {
+  return {
+    ...d,
+    state: mapWsStatus(msg.Status, !!msg.SaleId),
+    saleId: msg.SaleId ?? null,
+    amount: msg.Amount ?? d.amount,
+    gallons: msg.Volume ?? d.gallons,
+  }
+}
+
+/** Mergea los estados WS acumulados sobre los dispensers cargados (no pierde el snapshot). */
+export function mergeWsStates(
+  dispensers: Dispenser[],
+  states: Map<number, PumpStatusMessage>,
+): Dispenser[] {
+  if (states.size === 0) return dispensers
+  return dispensers.map((d) => {
+    const ws = states.get(d.pumpId)
+    return ws ? applyWsState(d, ws) : d
+  })
 }

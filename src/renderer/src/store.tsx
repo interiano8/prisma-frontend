@@ -50,6 +50,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applyAccent(accent)
   }, [accent])
 
+  // Envía el contexto de la sesión (tienda/POS) al proceso main para el
+  // licenciamiento (se persiste y se usa en el próximo arranque).
+  useEffect(() => {
+    const sc = session?.storeConfig
+    if (sc && window.api?.setLicenseContext) {
+      window.api.setLicenseContext({
+        storeId: sc.storeId ?? null,
+        storeName: sc.storeName ?? sc.name ?? null,
+        posNo: sc.posNumber ?? null,
+        clientCode: sc.casaMatriz ?? null
+      })
+    }
+  }, [session])
+
   const login = useCallback((s: LoginResponse) => {
     setServerTimezone(s.storeConfig?.serverTimezone)
     setSession(s)

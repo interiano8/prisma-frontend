@@ -30,9 +30,12 @@ address: string
   ocultarBotonOtrasBombas?: boolean
   numTransaccionesBombas?: number
   minutosAtrasada?: number
+  urlControlador?: string
+  claveControlador?: string
   mostrarTeclado?: boolean
   declararMontosIniciales?: boolean
   carpetaMultimedia?: string
+  caras?: number[]
   [key: string]: any
 }
 
@@ -97,9 +100,18 @@ export interface PaymentMethod {
   activo: boolean
 }
 
+export type DispenserState =
+  | 'idle'
+  | 'colgada'
+  | 'fuelling'
+  | 'starting'
+  | 'espera'
+  | 'pausa'
+  | 'error'
+
 export interface Dispenser {
   pumpId: number
-  state: string
+  state: DispenserState
   productName: string
   gallons: number
   amount: number
@@ -127,6 +139,7 @@ export interface PumpTransaction {
   fecha: string
   hora: string
   despachador: string
+  shiftId?: number | null
 }
 
 export interface CartItem {

@@ -5,17 +5,26 @@ import {
   round2,
   errMsg,
   fmtQty,
+  fmtVolumen,
+  fmtCantidadConUnidad,
+  turnoOptions,
+  filterMyPumps,
+  formatCloseBlock,
   fmtFechaHora,
   groupPaymentMethods,
   paymentImage,
+  paymentMethodName,
   txStatus,
   taxRate,
   taxLabel,
   cartItemTint,
   cartItemVatBadge,
   nextUid,
+  mapWsStatus,
+  applyWsState,
+  mergeWsStates,
 } from './pos-logic'
-import type { PaymentMethod, PumpTransaction } from '../api/types'
+import type { Dispenser, PaymentMethod, PumpTransaction } from '../api/types'
 
 describe('pos-logic', () => {
   it('fmtValue formatea con moneda y 2 decimales', () => {
@@ -106,5 +115,156 @@ describe('pos-logic', () => {
     const b = nextUid()
     expect(a).not.toBe(b)
     expect(a).toContain('-')
+  })
+
+  describe('mapWsStatus', () => {
+    it('mapea los estados del WS', () => {
+      expect(mapWsStatus('Idle', false)).toBe('idle')
+      expect(mapWsStatus('Fuelling', false)).toBe('fuelling')
+      expect(mapWsStatus('Starting', false)).toBe('starting')
+      expect(mapWsStatus('Authorized', false)).toBe('espera')
+      expect(mapWsStatus('Calling', false)).toBe('espera')
+      expect(mapWsStatus('Paused', false)).toBe('pausa')
+      expect(mapWsStatus('Error', false)).toBe('error')
+      expect(mapWsStatus('Closed', false)).toBe('error')
+    })
+
+    it('el estado físico manda sobre la venta pendiente', () => {
+      expect(mapWsStatus('Fuelling', true)).toBe('fuelling')
+      expect(mapWsStatus('Authorized', true)).toBe('espera')
+      expect(mapWsStatus('Paused', true)).toBe('pausa')
+    })
+
+    it('Idle con venta pendiente es colgada', () => {
+      expect(mapWsStatus('Idle', true)).toBe('colgada')
+      expect(mapWsStatus('idle', true)).toBe('colgada')
+    })
+  })
+
+  describe('mergeWsStates', () => {
+    const pump = (id: number): Dispenser => ({
+      pumpId: id,
+      state: 'idle',
+      productName: 'SUPER',
+      gallons: 0,
+      amount: 0,
+      unitPrice: 30,
+      limitAmount: null,
+    })
+
+    it('no pierde el snapshot que llegó antes de la carga', () => {
+      const states = new Map([
+        [7, { PumpID: 7, Status: 'Fuelling', SubStatus: 'Idle' }],
+        [8, { PumpID: 8, Status: 'Idle', SubStatus: 'Idle', SaleId: 99, Amount: 500, Volume: 16 }],
+      ])
+      const merged = mergeWsStates([pump(7), pump(8), pump(9)], states)
+
+      expect(merged[0].state).toBe('fuelling')
+      expect(merged[1].state).toBe('colgada')
+      expect(merged[1].saleId).toBe(99)
+      expect(merged[2].state).toBe('idle')
+    })
+
+    it('applyWsState actualiza un dispenser', () => {
+      const d = applyWsState(pump(7), { PumpID: 7, Status: 'Paused', SubStatus: 'Idle' })
+      expect(d.state).toBe('pausa')
+    })
+  })
+
+  describe('paymentMethodName', () => {
+    it('prioriza MetodoPago (nombre real) sobre Description (bucket)', () => {
+      expect(
+        paymentMethodName({ MetodoPago: 'Tarjeta Atlántida', Description: 'EFECTIVO', 'Charge Method Code': 'TARJ' })
+      ).toBe('Tarjeta Atlántida')
+    })
+
+    it('usa Description como respaldo si MetodoPago falta', () => {
+      expect(paymentMethodName({ Description: 'EFECTIVO', 'Charge Method Code': 'EFE' })).toBe('EFECTIVO')
+    })
+
+    it('usa Charge Method Code como respaldo final', () => {
+      expect(paymentMethodName({ 'Charge Method Code': 'TC-001' })).toBe('TC-001')
+    })
+
+    it('cae a Pago si no hay nada', () => {
+      expect(paymentMethodName({})).toBe('Pago')
+    })
+  })
+
+  describe('fmtVolumen', () => {
+    it('formatea galones y litros con 6 decimales', () => {
+      expect(fmtVolumen(20, 75.70823568)).toBe('20.000000 gal = 75.708236 litros')
+    })
+
+    it('formatea valores nulos como cero con 6 decimales', () => {
+      expect(fmtVolumen(null, undefined)).toBe('0.000000 gal = 0.000000 litros')
+    })
+  })
+
+  describe('fmtCantidadConUnidad', () => {
+    it('formatea cantidad con unidad de medida', () => {
+      expect(fmtCantidadConUnidad(24, 'UND')).toBe('24 UND')
+    })
+
+    it('devuelve undefined sin unidad de medida', () => {
+      expect(fmtCantidadConUnidad(24, null)).toBeUndefined()
+      expect(fmtCantidadConUnidad(24, '')).toBeUndefined()
+    })
+  })
+
+  describe('turnoOptions', () => {
+    it('genera Auto + 1..N según turnos configurados', () => {
+      const opts = turnoOptions(4)
+      expect(opts[0]).toEqual({ value: '', label: 'Auto (siguiente)' })
+      expect(opts.map((o) => o.value)).toEqual(['', '1', '2', '3', '4'])
+      expect(opts[1].label).toBe('Turno 1')
+    })
+
+    it('usa 4 por defecto si turnos no está configurado', () => {
+      expect(turnoOptions(null).map((o) => o.value)).toEqual(['', '1', '2', '3', '4'])
+      expect(turnoOptions(undefined).length).toBe(5)
+      expect(turnoOptions(0).length).toBe(5)
+    })
+  })
+
+  describe('filterMyPumps', () => {
+    const pump = (id: number, pos?: string | null): Dispenser => ({
+      pumpId: id,
+      state: 'idle',
+      productName: 'SUPER',
+      gallons: 0,
+      amount: 0,
+      unitPrice: 30,
+      limitAmount: null,
+      saleId: null,
+      pos: pos ?? null,
+    })
+
+    it('filtra por caras (pump ids) cuando están configuradas', () => {
+      const result = filterMyPumps([pump(1, '01'), pump(2, '02'), pump(3, '01')], [1, 3])
+      expect(result.map((d) => d.pumpId)).toEqual([1, 3])
+    })
+
+    it('sin caras devuelve [] (sin fallback a manguera.pos)', () => {
+      expect(filterMyPumps([pump(1, '01'), pump(2, '02')], null)).toEqual([])
+      expect(filterMyPumps([pump(1, '01'), pump(2, '02')], [])).toEqual([])
+    })
+  })
+
+  describe('formatCloseBlock', () => {
+    it('arma el mensaje con caras y ventas pendientes', () => {
+      const msg = formatCloseBlock('Existen ventas sin facturar.', {
+        caras: ['Bomba 1 · SUPER'],
+        ventas: ['Venta #9001 · turno 20260101'],
+      })
+      expect(msg).toContain('Existen ventas sin facturar.')
+      expect(msg).toContain('• Bomba 1 · SUPER')
+      expect(msg).toContain('• Venta #9001 · turno 20260101')
+    })
+
+    it('devuelve el mensaje sin detalles cuando no hay pendientes', () => {
+      expect(formatCloseBlock('Turno cerrado.', undefined)).toBe('Turno cerrado.')
+      expect(formatCloseBlock('Error', { caras: [], ventas: [] })).toBe('Error')
+    })
   })
 })

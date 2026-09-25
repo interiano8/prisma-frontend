@@ -56,13 +56,17 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`
+    let details: unknown
     try {
       const data = await res.json()
       if (data?.message) message = Array.isArray(data.message) ? data.message.join(', ') : data.message
+      details = data?.details
     } catch {
       // ignore
     }
-    throw new Error(message)
+    const err = new Error(message) as Error & { details?: unknown }
+    if (details !== undefined) err.details = details
+    throw err
   }
   const text = await res.text()
   return (text ? JSON.parse(text) : null) as T
@@ -295,6 +299,7 @@ export const api = {
       mostrarTeclado?: boolean
       declararMontosIniciales?: boolean
       visualizacion?: string
+      caras?: number[]
     }
   ) =>
     request<{

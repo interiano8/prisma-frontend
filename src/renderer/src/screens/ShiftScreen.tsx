@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api, getBackendUrl } from '../api/client'
 import { useApp } from '../store'
 import { fmtServerDate, localDateServer } from '../lib/server-tz'
+import { fmtVolumen, fmtCantidadConUnidad, turnoOptions, formatCloseBlock } from '../lib/pos-logic'
+import { buildShiftCloseLines, ShiftCloseContext } from '../lib/shift-print'
+import DatePicker from '../components/DatePicker'
 import {
   Clock,
   Play,
@@ -14,8 +17,8 @@ import {
   Hash,
   Layers,
   RefreshCw,
-  CalendarDays,
-  ChevronLeft
+  ChevronLeft,
+  Printer
 } from 'lucide-react'
 
 function localDate(iso?: string): string {
@@ -29,10 +32,6 @@ function fmtFecha(iso?: string): string {
 function fmtQty(n: number | string | null | undefined): string {
   const v = Number(n || 0)
   return v.toLocaleString('en-US', { maximumFractionDigits: 3 })
-}
-
-function fmtQty6(n: number | string | null | undefined): string {
-  return Number(n || 0).toFixed(6)
 }
 
 function DetailRow({ label, value, strong, sub }: { label: string; value: string; strong?: boolean; sub?: string }) {
@@ -142,6 +141,40 @@ export default function ShiftScreen() {
     }
   }
 
+  async function printReport(): Promise<boolean> {
+    if (!report) return false
+    const columns = Number(store.printerConfig?.columns) || 48
+    const ctx: ShiftCloseContext = {
+      store: {
+        storeName: store.storeName || store.name,
+        name: store.name,
+        address: store.address,
+        address1: store.address1,
+        address2: store.address2,
+        address3: store.address3,
+        rtn: store.rtn,
+        phone: store.phone,
+        email: store.email,
+        casaMatriz: store.casaMatriz,
+      },
+      turno: viewShift?.turno ?? shift?.Shift ?? null,
+      fecha: viewShift?.fecha || localDate(shift?.['Shift Starting']),
+      fechaImpresion: new Date().toLocaleString(),
+      cajero: viewShift?.cajero || session!.user.name,
+      pos: store.posNumber,
+      columns,
+    }
+    const lines = buildShiftCloseLines(report, ctx)
+    const printerPath = store.printerConfig?.printerPath || store.printerConfig?.printerName || ''
+    try {
+      await window.api.printTicket(getBackendUrl(), printerPath, { lines, cut: true, columns })
+      return true
+    } catch (e: any) {
+      console.warn('Error imprimiendo resumen:', e)
+      return false
+    }
+  }
+
   async function closeShift() {
     setBusy(true)
     setMessage('')
@@ -152,15 +185,21 @@ export default function ShiftScreen() {
         employeeName: session!.user.name,
         actualAmount: 0
       })
+      const printed = await printReport()
       setShiftInfo({ Shift: null })
       setReport(null)
       setViewShift(null)
-      setMessage('Turno cerrado.')
+      setMessage(printed ? 'Turno cerrado. Resumen impreso.' : 'Turno cerrado.')
     } catch (e: any) {
-      setMessage(e.message)
+      setMessage(formatCloseBlock(e.message, e?.details))
     } finally {
       setBusy(false)
     }
+  }
+
+  async function printButton() {
+    const ok = await printReport()
+    setMessage(ok ? 'Resumen impreso.' : 'No hay reporte para imprimir o falló la impresión.')
   }
 
   function selectShift(s: any) {
@@ -193,9 +232,14 @@ export default function ShiftScreen() {
           </div>
         </div>
         {shift?.Shift && (
-          <button className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:border-accent/40 hover:text-primary" onClick={() => loadReport()}>
-            <RefreshCw size={14} /> Actualizar detalle
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:border-accent/40 hover:text-primary" onClick={() => loadReport()}>
+              <RefreshCw size={14} /> Actualizar detalle
+            </button>
+            <button className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:border-accent/40 hover:text-primary" onClick={printButton} disabled={!report}>
+              <Printer size={14} /> Imprimir resumen
+            </button>
+          </div>
         )}
       </div>
 
@@ -238,12 +282,18 @@ export default function ShiftScreen() {
                 />
               </div>
               <div>
-                <label className="label-base">Número de turno (opcional)</label>
-                <input
+                <label className="label-base">Número de turno</label>
+                <select
                   className="input-base w-full"
                   value={shiftNumber}
                   onChange={(e) => setShiftNumber(e.target.value)}
-                />
+                >
+                  {turnoOptions(store.turnos).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                </select>
               </div>
               <button
                 className="btn-press flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
@@ -280,13 +330,7 @@ export default function ShiftScreen() {
             </div>
             <div className="flex gap-1.5">
               <div className="relative flex-1">
-                <CalendarDays size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  type="date"
-                  className="input-base w-full pl-8"
-                  value={otherDate}
-                  onChange={(e) => setOtherDate(e.target.value)}
-                />
+                <DatePicker value={otherDate} onChange={setOtherDate} placeholder="Fecha" />
               </div>
               <button className="btn-press shrink-0 rounded-lg border border-accent/40 p-2 text-accent transition-colors hover:bg-accent/10" onClick={refreshShifts} title="Buscar turnos">
                 <RefreshCw size={14} />
@@ -319,7 +363,7 @@ export default function ShiftScreen() {
           </div>
 
           {message && (
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted">{message}</div>
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted" style={{ whiteSpace: 'pre-line' }}>{message}</div>
           )}
         </div>
 
@@ -384,6 +428,9 @@ export default function ShiftScreen() {
                   <DetailRow label="Cobros" value={fmt(t.totalCobros)} />
                   <DetailRow label="Efectivo" value={fmt(t.totalEfectivo)} />
                   <DetailRow label="Descuentos" value={`-${fmt(t.totalDescuentos)}`} />
+                  {(t.volumenGalones || t.volumenLitros) ? (
+                    <DetailRow label="Volumen" value={fmtVolumen(t.volumenGalones, t.volumenLitros)} />
+                  ) : null}
                   {report.tasaCambio ? <DetailRow label="Tasa de cambio" value={String(report.tasaCambio)} /> : null}
                 </div>
               </div>
@@ -396,7 +443,12 @@ export default function ShiftScreen() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     {report.combustibles.map((c: any, i: number) => (
-                      <DetailRow key={i} label={c.name} value={fmt(c.total)} sub={`${fmtQty6(c.cantidad)} gal`} />
+                      <DetailRow
+                        key={i}
+                        label={c.name}
+                        value={fmt(c.total)}
+                        sub={fmtVolumen(c.volumenGalones, c.volumenLitros)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -410,7 +462,12 @@ export default function ShiftScreen() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     {report.otrosProductos.map((c: any, i: number) => (
-                      <DetailRow key={i} label={c.name} value={fmt(c.total)} sub={`${fmtQty(c.cantidad)} und`} />
+                      <DetailRow
+                        key={i}
+                        label={c.name}
+                        value={fmt(c.total)}
+                        sub={fmtCantidadConUnidad(c.cantidad, c.unidadMedida)}
+                      />
                     ))}
                   </div>
                 </div>

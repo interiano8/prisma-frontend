@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { join } from 'path'
 import { printTicket, TicketData } from './printer'
+import { ensureLicense, setLicenseContext } from './licensing'
 
 function iconPath(): string {
   if (app.isPackaged) {
@@ -24,6 +25,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     fullscreen: true,
+    backgroundColor: '#0a0a0b',
     icon: iconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -55,7 +57,14 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // En empaquetado, Electron no define NODE_ENV por sí solo; forzamos
+  // 'production' para que el gate de licencia se comporte en modo real
+  // (fallback de URL + sin bypass WAYNE_SKIP_LICENSE).
+  if (app.isPackaged && !process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production'
+  }
+
   ipcMain.handle('print:ticket', async (_event, payload: { backendUrl: string; printerPath: string; ticket: TicketData }) => {
     return printTicket(payload.backendUrl, payload.printerPath, payload.ticket)
   })
@@ -63,6 +72,22 @@ app.whenReady().then(() => {
   ipcMain.on('app:quit', () => {
     app.quit()
   })
+
+  // Contexto de licencia (tienda/POS) que el renderer envía desde la sesión.
+  ipcMain.on('license:set-context', (_event, ctx: Record<string, unknown>) => {
+    if (ctx && typeof ctx === 'object') {
+      setLicenseContext(app.getPath('userData'), ctx)
+    }
+  })
+
+  // Licencia: enrolamiento/validación. Bloquea el arranque si es inválida/suspendida.
+  try {
+    await ensureLicense(app.getPath('userData'))
+  } catch (e) {
+    dialog.showErrorBox('Licencia', (e as Error)?.message || 'Licencia inválida.')
+    app.quit()
+    return
+  }
 
   createWindow()
 
