@@ -10,23 +10,31 @@ import {
 } from './helpers'
 
 test('flujo de combustible: login → turno → bomba → carrito → pago → factura EXENTO', async ({ page }) => {
+  page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}]:`, msg.text()))
+  page.on('pageerror', (err) => console.log('[BROWSER UNCAUGHT]:', err))
+
   await login(page)
   await ensureOpenShift(page)
 
   // Siembra una transacción de bomba de prueba para que el flujo sea determinista.
-  await seedFuelSale()
+  const seededSaleId = await seedFuelSale()
 
   // Abre el modal de la primera bomba visible y espera que cargue.
-  await page.locator('button[title^="Surtidor"]').first().click()
-  await page.locator('text=Cargando transacciones…').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {})
+  const pumpBtn = page.locator('button[title^="Surtidor"]').first()
+  await pumpBtn.click()
+  await page.locator('[aria-label="Cargando transacciones"]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {})
 
-  // Agrega la transacción de prueba (Sin Facturar, es la más reciente).
-  const pendingCard = page.locator('text=Sin Facturar').first()
+  // Agrega la transacción de prueba por su identificador único
+  const pendingCard = page.getByText(`#${seededSaleId}`).first()
   await pendingCard.waitFor({ timeout: 10000 })
   await pendingCard.click()
+  await page.waitForTimeout(350)
 
-  // Cierra el modal de la bomba (su X); el modal no maneja Escape.
-  await page.locator('.card-surface:has-text("Bomba") button:has(svg)').first().click()
+  // Cierra el modal de la bomba si aún sigue abierto
+  const closeBtn = page.locator('button[aria-label="Cerrar modal de bomba"]').first()
+  if (await closeBtn.isVisible().catch(() => false)) {
+    await closeBtn.click()
+  }
   await selectConsumidorFinal(page)
   await payWithCash(page)
 

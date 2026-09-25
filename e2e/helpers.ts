@@ -9,25 +9,55 @@ export const POS_NO = process.env.E2E_POS || '01'
 export const DATABASE_URL =
   process.env.E2E_DATABASE_URL || 'postgresql://postgres@127.0.0.1:5432/prisma'
 
+export const CONTROLADOR_URL =
+  process.env.E2E_CONTROLADOR_URL || 'postgresql://postgres@127.0.0.1:5432/controlador'
+
 // Inserta una transacción de bomba de prueba (no facturada) para que el flujo
 // de combustible sea determinista. Devuelve el idVenta creado.
-export async function seedFuelSale(): Promise<number> {
-  const client = new Client({ connectionString: DATABASE_URL })
-  await client.connect()
+export async function seedFuelSale(pumpNumber = 3, hoseNumber = 1): Promise<number> {
+  const idVenta = Math.floor(Date.now() / 1000)
+
+  // Inserción en controlador (Wayne Fusion en PostgreSQL)
   try {
-    const idVenta = Math.floor(Date.now() / 1000)
-    await client.query(
-      `INSERT INTO ventas_combustible
-        (id_venta, numero_pos, numero_bomba, numero_manguera, monto, precio_unitario,
-         volumen, numero_grado, tipo_transaccion, facturada)
-       VALUES ($1, 1, 1, '1', 385, 38.5, 10, 1, '0', false)
-       ON CONFLICT (id_venta) DO NOTHING`,
-      [idVenta]
-    )
-    return idVenta
-  } finally {
-    await client.end()
+    const ctlClient = new Client({ connectionString: CONTROLADOR_URL })
+    await ctlClient.connect()
+    try {
+      await ctlClient.query(
+        `INSERT INTO fusion_sales
+          (sale_id, pos_number, pump_number, hose_number, amount, ppu,
+           volume, grade_nr, is_invoiced, lock_status, lock_id, date)
+         VALUES ($1, 1, $2, $3, 385.00, 38.5000, 10.000000, 1, false, 'NOT_LOCKED', '', now())
+         ON CONFLICT (sale_id) DO NOTHING`,
+        [idVenta, pumpNumber, hoseNumber]
+      )
+    } finally {
+      await ctlClient.end()
+    }
+  } catch (e) {
+    console.warn('Could not seed into fusion_sales:', e)
   }
+
+  // Compatibilidad adicional si existe ventas_combustible
+  try {
+    const client = new Client({ connectionString: DATABASE_URL })
+    await client.connect()
+    try {
+      await client.query(
+        `INSERT INTO ventas_combustible
+          (id_venta, numero_pos, numero_bomba, numero_manguera, monto, precio_unitario,
+           volumen, numero_grado, tipo_transaccion, facturada)
+         VALUES ($1, 1, $2, $3, 385, 38.5, 10, 1, '0', false)
+         ON CONFLICT (id_venta) DO NOTHING`,
+        [idVenta, pumpNumber, String(hoseNumber)]
+      )
+    } finally {
+      await client.end()
+    }
+  } catch {
+    // Si la tabla no existe en la BD local, se ignora
+  }
+
+  return idVenta
 }
 
 // Stub del puente de Electron (no existe en navegador) + URL del backend.

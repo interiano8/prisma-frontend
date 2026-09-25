@@ -402,20 +402,22 @@ export default function PosScreen() {
         onConfirm={checkout}
       />
 
-      <PumpModal
-        pump={selectedPump}
-        loading={pumpTxLoading}
-        transactions={pumpTransactions}
-        cartSaleIds={cartSaleIds}
-        minutosAtrasada={store.minutosAtrasada ?? 10}
-        moneda={store.moneda}
-        onClose={() => setSelectedPump(null)}
-        onAdd={(t) => addFuelSale(t)}
-        onAddAndClose={(t) => {
-          addFuelSale(t)
-          setSelectedPump(null)
-        }}
-      />
+      {selectedPump && (
+        <PumpModal
+          pump={selectedPump}
+          loading={pumpTxLoading}
+          transactions={pumpTransactions}
+          cartSaleIds={cartSaleIds}
+          minutosAtrasada={store.minutosAtrasada ?? 10}
+          moneda={store.moneda}
+          onClose={() => setSelectedPump(null)}
+          onAdd={(t) => addFuelSale(t)}
+          onAddAndClose={(t) => {
+            addFuelSale(t)
+            setSelectedPump(null)
+          }}
+        />
+      )}
 
 <ProductModal
         open={productModalOpen || !!categoryOpen}

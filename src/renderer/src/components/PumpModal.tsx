@@ -23,23 +23,6 @@ export default function PumpModal(props: Props) {
   const lastTap = useRef<{ t: number; saleId: number | null }>({ t: 0, saleId: null })
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  if (!props.pump) return null
-  const fmt = (n: number | string) => fmtValue(n, props.moneda)
-
-  function handleClick(t: PumpTransaction) {
-    const now = Date.now()
-    const prev = lastTap.current
-    lastTap.current = { t: now, saleId: t.saleId }
-    if (timerRef.current) clearTimeout(timerRef.current)
-    if (prev.saleId === t.saleId && now - prev.t < DOUBLE_TAP_MS) {
-      // Doble clic / doble tap sobre la misma venta: agregar y cerrar el modal.
-      props.onAddAndClose(t)
-    } else {
-      // Clic simple: agregar tras un pequeño margen para no duplicar con el doble.
-      timerRef.current = setTimeout(() => props.onAdd(t), DOUBLE_TAP_MS + 20)
-    }
-  }
-
   // Filtrado reactivo por monto, combustible, manguera o saleId
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -71,6 +54,23 @@ export default function PumpModal(props: Props) {
     }
     return { pendientes: pend, facturadas: fact }
   }, [filtered])
+
+  if (!props.pump) return null
+  const fmt = (n: number | string) => fmtValue(n, props.moneda)
+
+  function handleClick(t: PumpTransaction) {
+    const now = Date.now()
+    const prev = lastTap.current
+    lastTap.current = { t: now, saleId: t.saleId }
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (prev.saleId === t.saleId && now - prev.t < DOUBLE_TAP_MS) {
+      // Doble clic / doble tap sobre la misma venta: agregar y cerrar el modal.
+      props.onAddAndClose(t)
+    } else {
+      // Clic simple: agregar tras un pequeño margen para no duplicar con el doble.
+      timerRef.current = setTimeout(() => props.onAdd(t), DOUBLE_TAP_MS + 20)
+    }
+  }
 
   function renderCard(t: PumpTransaction, isLatestPending = false) {
     const inCart = props.cartSaleIds.has(t.saleId)
@@ -161,7 +161,11 @@ export default function PumpModal(props: Props) {
               <SurtidorIcon size={22} className="text-accent" />
               <h3 className="text-xl font-semibold">Bomba {props.pump.pumpId}</h3>
             </div>
-            <button className="btn-press text-muted hover:text-primary" onClick={props.onClose}>
+            <button
+              className="btn-press text-muted hover:text-primary"
+              onClick={props.onClose}
+              aria-label="Cerrar modal de bomba"
+            >
               <X size={20} />
             </button>
           </div>
