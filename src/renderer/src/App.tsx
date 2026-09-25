@@ -12,6 +12,7 @@ import LealScreen from './screens/LealScreen'
 import DocumentsScreen from './screens/DocumentsScreen'
 import PendientesScreen from './screens/PendientesScreen'
 import { useSystemHealth } from './hooks/useSystemHealth'
+import CloudSyncBadge from './components/CloudSyncBadge'
 
 const NAV: { id: View; label: string; icon: any }[] = [
   { id: 'pos', label: 'Venta', icon: LayoutGrid },
@@ -168,6 +169,7 @@ export default function App() {
 
         <div className="flex items-center gap-3">
           <HeaderClock />
+          <CloudSyncBadge />
           <button
             onClick={() => void reprintLastTicket()}
             className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-primary"

@@ -234,11 +234,20 @@ export interface SystemMetrics {
   timestamp: string
 }
 
+export interface HealthCloudSync {
+  status: 'online' | 'offline' | 'syncing' | 'not_configured'
+  pendingCount: number
+  lastSyncAt: string | null
+  latencyMs?: number | null
+  error?: string | null
+}
+
 export interface HealthCheckResult {
   status: 'ok' | 'degraded' | 'error'
   database: ComponentHealth
   controller: ComponentHealth
   licensing: ComponentHealth
   system: SystemMetrics
+  cloudSync?: HealthCloudSync
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '../api/client'
-import type { HealthCheckResult } from '../api/types'
+import type { HealthCheckResult, HealthCloudSync } from '../api/types'
 
 export type SystemHealthStatus = 'ok' | 'degraded' | 'error' | 'unreachable' | 'checking'
 
@@ -14,6 +14,7 @@ export interface UseSystemHealthReturn {
   status: SystemHealthStatus
   lastChecked: Date | null
   summary: string
+  cloudSync: HealthCloudSync | null
   refresh: () => Promise<void>
 }
 
@@ -37,7 +38,18 @@ export function formatHealthSummary(health: HealthCheckResult | null, status: Sy
       ? 'Licencia: Activa'
       : 'Licencia: Inválida'
 
-  return `${db} · ${controller} · ${license}`
+  const cloud = health.cloudSync
+    ? health.cloudSync.status === 'online'
+      ? 'Nube: OK'
+      : health.cloudSync.status === 'syncing'
+        ? 'Nube: Sincronizando'
+        : health.cloudSync.status === 'not_configured'
+          ? 'Nube: N/C'
+          : `Nube: Offline (${health.cloudSync.pendingCount})`
+    : null
+
+  const base = `${db} · ${controller} · ${license}`
+  return cloud ? `${base} · ${cloud}` : base
 }
 
 export function useSystemHealth(options?: UseSystemHealthOptions): UseSystemHealthReturn {
@@ -93,6 +105,7 @@ export function useSystemHealth(options?: UseSystemHealthOptions): UseSystemHeal
     status,
     lastChecked,
     summary,
+    cloudSync: health?.cloudSync ?? null,
     refresh
   }
 }

@@ -60,6 +60,32 @@ describe('useSystemHealth & formatHealthSummary', () => {
       const summary = formatHealthSummary(mockDegraded, 'degraded')
       expect(summary).toContain('Bombas: Desconectadas')
     })
+
+    it('formatea adecuadamente cuando cloudSync está presente y online', () => {
+      const result: HealthCheckResult = {
+        ...mockHealthy,
+        cloudSync: {
+          status: 'online',
+          pendingCount: 0,
+          lastSyncAt: '2026-09-25T12:00:00Z'
+        }
+      }
+      const summary = formatHealthSummary(result, 'ok')
+      expect(summary).toContain('Nube: OK')
+    })
+
+    it('formatea adecuadamente cuando cloudSync está offline con ventas pendientes', () => {
+      const result: HealthCheckResult = {
+        ...mockHealthy,
+        cloudSync: {
+          status: 'offline',
+          pendingCount: 4,
+          lastSyncAt: '2026-09-25T11:00:00Z'
+        }
+      }
+      const summary = formatHealthSummary(result, 'ok')
+      expect(summary).toContain('Nube: Offline (4)')
+    })
   })
 
   describe('useSystemHealth Hook', () => {
