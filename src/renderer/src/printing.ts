@@ -16,6 +16,7 @@ export interface PrintTicketInput {
   comment?: string
   isTicket?: boolean
   isCredit?: boolean
+  isReprint?: boolean
   cambio?: number
 }
 
@@ -29,7 +30,7 @@ export async function printSaleTicket(input: PrintTicketInput): Promise<void> {
   const ex = items.filter((i) => !/15|18/.test(i.vatGroup || ''))
 
   const lines = buildDocumento({
-    tipo: input.isTicket ? 'ticket' : 'factura',
+    tipo: input.isTicket ? 'ticket' : input.isReprint ? 'reimpresion' : 'factura',
     modo: input.isTicket ? undefined : input.isCredit ? 'credito' : 'contado',
     store: {
       storeName: store.storeName || store.name,

@@ -22,7 +22,7 @@ import { usePumpSocket, type PumpSocketStatus, type PumpStatusMessage } from '..
 import { fmtValue, applyWsState, mergeWsStates, filterMyPumps } from '../lib/pos-logic'
 
 export default function PosScreen() {
-  const { session, setView, paymentMethods, backendUrl } = useApp()
+  const { session, setView, paymentMethods, backendUrl, setLastPrintedTicket } = useApp()
   const store = session!.storeConfig
   const fidelizacionLabel = store.nombreBotonFidelizacion || 'Fidelización'
   const fmt = (n: number | string) => fmtValue(n, store.moneda)
@@ -63,6 +63,7 @@ export default function PosScreen() {
       cartApi.clear()
       setSaleDone({ invoiceNo, change })
     },
+    onTicketPrinted: setLastPrintedTicket,
     setMessage,
     printTicket: printSaleTicket
   })

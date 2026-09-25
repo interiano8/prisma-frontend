@@ -234,6 +234,9 @@ export function buildDocumento(input: DocumentoInput): TicketLine[] {
 
   // Info fiscal
   lines.push(sep(cols))
+  if (input.tipo === 'reimpresion') {
+    lines.push({ text: '*** REIMPRESIÓN ***', align: 'center', bold: true })
+  }
   lines.push({ text: title(input.tipo, input.modo), align: 'center', bold: true })
   lines.push({ text: `${nc ? 'Nota Credito' : 'Factura'}: ${input.numeroDocumento}`, bold: true })
   if (esFiscal(input.tipo)) {

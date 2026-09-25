@@ -23,6 +23,7 @@ export interface UseCheckoutOptions {
   customer: Customer | null
   onCustomerChange: (c: Customer | null) => void
   onSaleComplete: (invoiceNo: string, change: number) => void
+  onTicketPrinted?: (ticket: PrintTicketInput) => void
   setMessage: (m: string) => void
   printTicket: (input: PrintTicketInput) => Promise<void>
 }
@@ -346,29 +347,33 @@ export function useCheckout(opts: UseCheckoutOptions) {
         comment: comment.trim()
       })
 
+      const ticketInput: PrintTicketInput = {
+        session: opts.session,
+        items: opts.effectiveCart,
+        payments: esTicket
+        ? []
+        : payments.map((p) => ({
+            ...p,
+            amount: Number(p.amount),
+            moneda: p.moneda,
+            tasaCambio: p.tasaCambio,
+            montoIngresado: p.moneda === 'USD' ? Number(p.amount) : undefined
+          })),
+        total: opts.totals.total,
+        tax: opts.totals.tax,
+        discount: opts.totals.discount,
+        result,
+        isTicket: esTicket,
+        isCredit: billingType === 'credito',
+        cambio: change,
+        customerName: opts.customer.name,
+        customerRtn: opts.customer.rtf
+      }
+
+      opts.onTicketPrinted?.(ticketInput)
+
       try {
-        await opts.printTicket({
-          session: opts.session,
-          items: opts.effectiveCart,
-          payments: esTicket
-          ? []
-          : payments.map((p) => ({
-              ...p,
-              amount: Number(p.amount),
-              moneda: p.moneda,
-              tasaCambio: p.tasaCambio,
-              montoIngresado: p.moneda === 'USD' ? Number(p.amount) : undefined
-            })),
-          total: opts.totals.total,
-          tax: opts.totals.tax,
-          discount: opts.totals.discount,
-          result,
-          isTicket: esTicket,
-          isCredit: billingType === 'credito',
-          cambio: change,
-          customerName: opts.customer.name,
-          customerRtn: opts.customer.rtf
-        })
+        await opts.printTicket(ticketInput)
       } catch (printErr: any) {
         console.warn('Error imprimiendo:', printErr.message)
       }

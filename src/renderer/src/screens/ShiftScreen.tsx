@@ -52,6 +52,7 @@ export default function ShiftScreen() {
   const shift = session!.shiftInfo
 
   const [initialAmount, setInitialAmount] = useState('0')
+  const [actualAmount, setActualAmount] = useState('')
   const [shiftNumber, setShiftNumber] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -183,12 +184,13 @@ export default function ShiftScreen() {
         storeId: store.storeId,
         posNo: store.posNumber,
         employeeName: session!.user.name,
-        actualAmount: 0
+        actualAmount: Number(actualAmount) || 0
       })
       const printed = await printReport()
       setShiftInfo({ Shift: null })
       setReport(null)
       setViewShift(null)
+      setActualAmount('')
       setMessage(printed ? 'Turno cerrado. Resumen impreso.' : 'Turno cerrado.')
     } catch (e: any) {
       setMessage(formatCloseBlock(e.message, e?.details))
@@ -212,6 +214,9 @@ export default function ShiftScreen() {
   }
 
   const t = report?.totales
+  const expectedCash = Number(t?.totalEfectivo ?? 0)
+  const enteredCash = actualAmount === '' ? null : Number(actualAmount)
+  const diferencia = enteredCash !== null ? Number((enteredCash - expectedCash).toFixed(2)) : null
 
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col">
@@ -306,13 +311,76 @@ export default function ShiftScreen() {
           )}
 
           {shift?.Shift && (
-            <button
-              className="btn-press flex w-full items-center justify-center gap-2 rounded-lg bg-danger py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-              onClick={closeShift}
-              disabled={busy}
-            >
-              <Square size={16} /> {busy ? 'Cerrando…' : 'Cerrar turno'}
-            </button>
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-4">
+              <div className="flex items-center justify-between border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-accent">
+                <span className="flex items-center gap-1.5">
+                  <Wallet size={14} /> Arqueo de Caja
+                </span>
+                {reportLoading && <span className="text-[10px] text-muted">Calculando…</span>}
+              </div>
+
+              <div>
+                <label className="label-base">Efectivo físico en caja</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="input-base w-full font-mono text-base font-semibold"
+                    placeholder="0.00"
+                    value={actualAmount}
+                    onChange={(e) => setActualAmount(e.target.value)}
+                  />
+                  {moneda && (
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-muted">
+                      {moneda}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Comparativa y Badge en tiempo real */}
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border-strong/40 bg-card p-3 text-xs">
+                <div className="flex justify-between text-muted">
+                  <span>Efectivo esperado:</span>
+                  <span className="font-mono font-medium text-primary">
+                    {fmt(expectedCash)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>Efectivo ingresado:</span>
+                  <span className="font-mono font-medium text-primary">
+                    {actualAmount === '' ? '—' : fmt(actualAmount)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between border-t border-border pt-2 font-semibold">
+                  <span>Diferencia:</span>
+                  {diferencia === null ? (
+                    <span className="text-[11px] text-muted">Ingrese monto</span>
+                  ) : Math.abs(diferencia) < 0.01 ? (
+                    <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2.5 py-0.5 text-xs font-bold text-success">
+                      {moneda ? `${moneda} ` : ''}0.00 · Cuadrado
+                    </span>
+                  ) : diferencia > 0 ? (
+                    <span className="inline-flex items-center rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-xs font-bold text-accent">
+                      +{fmt(diferencia)} · Sobrante
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-danger/30 bg-danger/15 px-2.5 py-0.5 text-xs font-bold text-danger">
+                      -{fmt(Math.abs(diferencia))} · Faltante
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                className="btn-press mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-danger py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                onClick={closeShift}
+                disabled={busy}
+              >
+                <Square size={16} /> {busy ? 'Cerrando…' : 'Cerrar turno'}
+              </button>
+            </div>
           )}
 
           {/* Ver otros turnos */}
@@ -380,6 +448,36 @@ export default function ShiftScreen() {
             </div>
           ) : report && t ? (
             <>
+              {/* Resumen Pre-Cierre por Método de Pago */}
+              <div className="card-surface rounded-xl p-4">
+                <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+                    <CreditCard size={14} /> Resumen Pre-Cierre por Método de Pago
+                  </div>
+                  <span className="text-xs text-muted">
+                    Total cobros:{' '}
+                    <span className="font-mono font-semibold text-primary">
+                      {fmt(t.totalCobros ?? t.totalVentas)}
+                    </span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="text-[11px] text-muted">Efectivo</div>
+                    <div className="font-mono text-base font-bold tabular-nums text-primary">
+                      {fmt(t.totalEfectivo ?? 0)}
+                    </div>
+                  </div>
+                  {report.cobros?.filter((c: any) => !/efectivo/i.test(c.name)).map((c: any, i: number) => (
+                    <div key={i} className="rounded-lg border border-border bg-card p-3">
+                      <div className="truncate text-[11px] text-muted" title={c.name}>{c.name}</div>
+                      <div className="font-mono text-base font-bold tabular-nums text-primary">{fmt(c.total)}</div>
+                      <div className="text-[10px] text-muted/70">{c.cantidad ?? 0} cobro{c.cantidad === 1 ? '' : 's'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Documentos */}
               <div className="card-surface rounded-xl p-4">
                 <div className="mb-3 flex items-center gap-1.5 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-accent">

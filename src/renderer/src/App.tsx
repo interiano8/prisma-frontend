@@ -6,7 +6,7 @@ import CustomersScreen from './screens/CustomersScreen'
 import ShiftScreen from './screens/ShiftScreen'
 import ConfigScreen from './screens/ConfigScreen'
 import ConfirmDialog from './components/ConfirmDialog'
-import { LayoutGrid, Clock, Settings, LogOut, Sun, Moon, X, Users, Gift, User, Wifi, WifiOff, FileText } from 'lucide-react'
+import { LayoutGrid, Clock, Settings, LogOut, Sun, Moon, X, Users, Gift, User, Wifi, WifiOff, FileText, Printer } from 'lucide-react'
 import PrismaLogo from './components/PrismaLogo'
 import LealScreen from './screens/LealScreen'
 import DocumentsScreen from './screens/DocumentsScreen'
@@ -111,8 +111,19 @@ function HeaderClock() {
 }
 
 export default function App() {
-  const { session, view, setView, logout, theme, toggleTheme } = useApp()
+  const { session, view, setView, logout, theme, toggleTheme, lastPrintedTicket, toast, hideToast, reprintLastTicket } = useApp()
   const [confirmClose, setConfirmClose] = useState(false)
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'F11') {
+        e.preventDefault()
+        void reprintLastTicket()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [reprintLastTicket])
 
   if (!session) {
     return <Login />
@@ -158,6 +169,14 @@ export default function App() {
         <div className="flex items-center gap-3">
           <HeaderClock />
           <button
+            onClick={() => void reprintLastTicket()}
+            className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-primary"
+            title="Reimprimir último comprobante (F11)"
+          >
+            <Printer size={14} className={lastPrintedTicket ? 'text-accent' : ''} />
+            <span>Reimprimir</span>
+          </button>
+          <button
             onClick={toggleTheme}
             className="btn-press flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted hover:border-accent/40 hover:text-primary"
             title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
@@ -186,10 +205,25 @@ export default function App() {
         {view === 'customers' && <CustomersScreen />}
         {view === 'shift' && <ShiftScreen />}
         {view === 'documents' && <DocumentsScreen />}
-                {view === 'pendientes' && <PendientesScreen />}
+        {view === 'pendientes' && <PendientesScreen />}
         {view === 'leal' && <LealScreen />}
         {view === 'config' && <ConfigScreen />}
       </main>
+
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-[100] max-w-md rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-xl animate-in fade-in-0 zoom-in-95">
+          <div className="flex items-start justify-between gap-3">
+            <span className="flex-1 text-primary">{toast}</span>
+            <button
+              className="btn-press shrink-0 text-muted hover:text-primary"
+              onClick={hideToast}
+              aria-label="Cerrar notificación"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirmClose && (
         <ConfirmDialog

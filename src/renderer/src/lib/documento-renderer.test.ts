@@ -191,4 +191,9 @@ describe('documento-renderer', () => {
     const totalLetras = lines.find((l) => l.text.includes('TOTAL EN LETRAS'))
     expect(totalLetras).toBeTruthy()
   })
+
+  it('buildDocumento reimpresión agrega banner de reimpresión', () => {
+    const lines = buildDocumento({ ...baseInput, tipo: 'reimpresion' } as any)
+    expect(lines.some((l) => l.text.includes('*** REIMPRESIÓN ***'))).toBe(true)
+  })
 })

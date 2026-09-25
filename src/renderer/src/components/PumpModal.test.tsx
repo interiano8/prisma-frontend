@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import PumpModal from './PumpModal'
 import type { Dispenser, PumpTransaction } from '../api/types'
 
@@ -80,5 +80,43 @@ describe('PumpModal', () => {
   it('no muestra el turno del controlador cuando no existe', () => {
     renderModal({ transactions: txs })
     expect(screen.queryByText(/Turno Controlador/)).not.toBeInTheDocument()
+  })
+
+  it('separa transacciones en Pendientes de Cobro e Historial Facturado', () => {
+    const mixedTxs: PumpTransaction[] = [
+      { ...txs[0], saleId: 2001, estado: 'Sin Facturar' },
+      { ...txs[0], saleId: 2002, estado: 'Facturado' },
+    ]
+    renderModal({ transactions: mixedTxs })
+    expect(screen.getByText(/Pendientes de Cobro \(1\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Historial Facturado \(1\)/)).toBeInTheDocument()
+    expect(screen.getByText(/#2001/)).toBeInTheDocument()
+    expect(screen.getByText(/#2002/)).toBeInTheDocument()
+  })
+
+  it('muestra badge "Último despacho" en la primera venta pendiente', () => {
+    const twoPending: PumpTransaction[] = [
+      { ...txs[0], saleId: 3001, estado: 'Sin Facturar', amount: 300 },
+      { ...txs[0], saleId: 3002, estado: 'Sin Facturar', amount: 200 },
+    ]
+    renderModal({ transactions: twoPending, minutosAtrasada: 0 })
+    expect(screen.getByText('Último despacho')).toBeInTheDocument()
+    expect(screen.getAllByText('Sin Facturar')).toHaveLength(2)
+  })
+
+  it('filtra transacciones por monto al escribir en el buscador', () => {
+    const searchTxs: PumpTransaction[] = [
+      { ...txs[0], saleId: 4001, amount: 500.25 },
+      { ...txs[0], saleId: 4002, amount: 150.0 },
+    ]
+    renderModal({ transactions: searchTxs })
+    expect(screen.getByText(/#4001/)).toBeInTheDocument()
+    expect(screen.getByText(/#4002/)).toBeInTheDocument()
+
+    const searchInput = screen.getByPlaceholderText(/Buscar por monto/)
+    fireEvent.change(searchInput, { target: { value: '150' } })
+
+    expect(screen.queryByText(/#4001/)).not.toBeInTheDocument()
+    expect(screen.getByText(/#4002/)).toBeInTheDocument()
   })
 })

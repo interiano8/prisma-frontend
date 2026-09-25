@@ -1,8 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import type { LoginResponse, StoreConfig, PaymentMethod } from './api/types'
 import { getBackendUrl, setBackendUrl as persistBackendUrl, clearSessionToken } from './api/client'
 import { getStoredTheme, applyTheme, getStoredAccent, applyAccent, Theme } from './theme'
 import { setServerTimezone } from './lib/server-tz'
+import type { PrintTicketInput } from './printing'
+import { printSaleTicket } from './printing'
+import { errMsg } from './lib/pos-logic'
 
 export type View =
   | 'pos'
@@ -20,6 +23,8 @@ interface AppState {
   theme: Theme
   accent: string
   paymentMethods: PaymentMethod[]
+  lastPrintedTicket: PrintTicketInput | null
+  toast: string | null
   login: (s: LoginResponse) => void
   logout: () => void
   setBackendUrl: (url: string) => void
@@ -30,12 +35,22 @@ interface AppState {
   setTheme: (theme: Theme) => void
   setAccent: (color: string) => void
   setPaymentMethods: (methods: PaymentMethod[]) => void
+  setLastPrintedTicket: (ticket: PrintTicketInput | null) => void
+  showToast: (msg: string) => void
+  hideToast: () => void
+  reprintLastTicket: () => Promise<boolean>
 }
 
 const AppContext = createContext<AppState | null>(null)
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<LoginResponse | null>(null)
+export function AppProvider({
+  children,
+  initialSession
+}: {
+  children: ReactNode
+  initialSession?: LoginResponse | null
+}) {
+  const [session, setSession] = useState<LoginResponse | null>(initialSession ?? null)
   const [backendUrl, setBackendUrlState] = useState<string>(getBackendUrl())
   const [view, setView] = useState<View>('pos')
   const [theme, setTheme] = useState<Theme>(getStoredTheme())
@@ -64,12 +79,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [session])
 
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast(msg)
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null)
+    }, 4000)
+  }, [])
+
+  const hideToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast(null)
+  }, [])
+
+  const [lastPrintedTicket, setLastPrintedTicketState] = useState<PrintTicketInput | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('last_printed_ticket')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  const setLastPrintedTicket = useCallback((ticket: PrintTicketInput | null) => {
+    setLastPrintedTicketState(ticket)
+    try {
+      if (ticket) {
+        sessionStorage.setItem('last_printed_ticket', JSON.stringify(ticket))
+      } else {
+        sessionStorage.removeItem('last_printed_ticket')
+      }
+    } catch {
+      // ignore storage serialization/quota issues
+    }
+  }, [])
+
+  const reprintLastTicket = useCallback(async (): Promise<boolean> => {
+    if (!lastPrintedTicket) {
+      showToast('No hay comprobante previo disponible para reimprimir.')
+      return false
+    }
+    try {
+      await printSaleTicket({
+        ...lastPrintedTicket,
+        isReprint: true
+      })
+      showToast(`Comprobante ${lastPrintedTicket.result.invoiceNo} reimpreso con éxito.`)
+      return true
+    } catch (e: any) {
+      showToast(`Error al reimprimir: ${errMsg(e)}`)
+      return false
+    }
+  }, [lastPrintedTicket, showToast])
+
   const login = useCallback((s: LoginResponse) => {
     setServerTimezone(s.storeConfig?.serverTimezone)
     setSession(s)
   }, [])
   const logout = useCallback(() => {
     clearSessionToken()
+    try {
+      sessionStorage.removeItem('last_printed_ticket')
+    } catch {}
+    setLastPrintedTicketState(null)
     setSession(null)
   }, [])
   const setBackendUrl = useCallback((url: string) => {
@@ -110,7 +185,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTheme: setThemeValue,
         setAccent,
         paymentMethods,
-        setPaymentMethods
+        setPaymentMethods,
+        lastPrintedTicket,
+        toast,
+        setLastPrintedTicket,
+        showToast,
+        hideToast,
+        reprintLastTicket
       }}
     >
       {children}
