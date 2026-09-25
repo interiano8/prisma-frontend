@@ -11,6 +11,7 @@ import PrismaLogo from './components/PrismaLogo'
 import LealScreen from './screens/LealScreen'
 import DocumentsScreen from './screens/DocumentsScreen'
 import PendientesScreen from './screens/PendientesScreen'
+import { useSystemHealth } from './hooks/useSystemHealth'
 
 const NAV: { id: View; label: string; icon: any }[] = [
   { id: 'pos', label: 'Venta', icon: LayoutGrid },
@@ -34,6 +35,7 @@ function HeaderClock() {
   const { session } = useApp()
   const [now, setNow] = useState(new Date())
   const [online, setOnline] = useState(navigator.onLine)
+  const { status: healthStatus, summary } = useSystemHealth({ pollIntervalMs: 20000 })
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -52,6 +54,27 @@ function HeaderClock() {
   const shiftStart = session?.shiftInfo?.['Shift Starting']
   const shiftDate = shiftStart ? formatDate(shiftStart) : '—'
   const userName = session?.user.name || ''
+
+  // Determinación de estado y color visual
+  const isHealthy = online && healthStatus === 'ok'
+  const isDegraded = online && healthStatus === 'degraded'
+  const hasError = !online || healthStatus === 'error' || healthStatus === 'unreachable'
+
+  const statusColorClass = isHealthy
+    ? 'border-success/40 bg-success/10 text-success'
+    : isDegraded
+      ? 'border-warning/40 bg-warning/10 text-warning'
+      : 'border-danger/40 bg-danger/10 text-danger'
+
+  const statusTitle = !online
+    ? 'Sin conexión a internet local'
+    : healthStatus === 'unreachable'
+      ? `Backend no disponible (${summary})`
+      : healthStatus === 'error'
+        ? `Error en base de datos (${summary})`
+        : healthStatus === 'degraded'
+          ? `Servicio degradado (${summary})`
+          : `Sistema operativo (${summary})`
 
   return (
     <div className="flex items-center gap-3">
@@ -74,12 +97,14 @@ function HeaderClock() {
         </span>
       </div>
       <div
-        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-          online ? 'border-success/40 bg-success/10 text-success' : 'border-danger/40 bg-danger/10 text-danger'
-        }`}
-        title={online ? 'Con conexión a internet' : 'Sin conexión a internet'}
+        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${statusColorClass}`}
+        title={statusTitle}
       >
-        {online ? <Wifi size={16} /> : <WifiOff size={16} />}
+        {hasError && !online ? (
+          <WifiOff size={16} />
+        ) : (
+          <Wifi size={16} />
+        )}
       </div>
     </div>
   )

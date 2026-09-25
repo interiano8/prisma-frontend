@@ -7,7 +7,8 @@ import type {
   LoginResponse,
   MediaFile,
   PaymentMethod,
-  Product
+  Product,
+  HealthCheckResult
 } from './types'
 
 const STORAGE_KEY = 'prisma:backend-url'
@@ -394,5 +395,8 @@ export const api = {
     request<{ ok: boolean }>('/api/auth/admin-password', {
       method: 'PUT',
       body: JSON.stringify({ storeId, currentPassword, newPassword })
-    })
+    }),
+
+  // Health
+  health: () => request<HealthCheckResult>('/api/health')
 }

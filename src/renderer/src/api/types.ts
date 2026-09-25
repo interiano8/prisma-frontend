@@ -209,3 +209,27 @@ export interface InvoiceCreateResult {
   seriesRemaining?: number
   seriesRemainingDays?: number
 }
+
+export interface ComponentHealth {
+  status: 'up' | 'down' | 'degraded' | 'not_configured' | 'bypassed' | 'active' | 'unlicensed'
+  latencyMs?: number
+  url?: string
+  error?: string
+  details?: Record<string, unknown>
+}
+
+export interface SystemMetrics {
+  uptimeSeconds: number
+  memoryRssMb: number
+  memoryHeapUsedMb: number
+  timestamp: string
+}
+
+export interface HealthCheckResult {
+  status: 'ok' | 'degraded' | 'error'
+  database: ComponentHealth
+  controller: ComponentHealth
+  licensing: ComponentHealth
+  system: SystemMetrics
+}
+
