@@ -7,6 +7,8 @@ export interface User {
   pinLeal?: string
   isPinLealEnabled?: boolean
   preferencias?: { theme?: string; accent?: string } | null
+  roles?: string[]
+  permissions?: string[]
 }
 
 export interface StoreConfig {

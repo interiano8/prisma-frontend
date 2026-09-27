@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, X } from 'lucide-react'
+import { KeyRound, X, ShieldCheck } from 'lucide-react'
 import { api } from '../../api/client'
 import { formatCaiMask, formatRangoMask } from '../../lib/sar-masks'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -23,9 +23,10 @@ function decrementCorrelativo(s: string): string {
 interface BillingSeriesConfigTabProps {
   store: any
   onMessage: (msg: string) => void
+  isCentralized?: boolean
 }
 
-export function BillingSeriesConfigTab({ store, onMessage }: BillingSeriesConfigTabProps) {
+export function BillingSeriesConfigTab({ store, onMessage, isCentralized }: BillingSeriesConfigTabProps) {
   const [series, setSeries] = useState<any[]>([])
   const [seriesModal, setSeriesModal] = useState<string | null>(null)
   const [editingSerie, setEditingSerie] = useState<{ nl: number; serie: string } | null>(null)
@@ -150,9 +151,14 @@ export function BillingSeriesConfigTab({ store, onMessage }: BillingSeriesConfig
 
   return (
     <div className="card-surface p-6 animate-in fade-in-0 zoom-in-95">
-      <div className="flex items-center gap-2">
-        <KeyRound size={16} className="text-accent" />
-        <h3 className="text-sm font-semibold">Series de documentos</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <KeyRound size={16} className="text-accent" />
+          <h3 className="text-sm font-semibold">Series de documentos</h3>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          <ShieldCheck size={11} /> Gobernanza Local SAR (Activo)
+        </span>
       </div>
       <p className="mt-1 text-xs text-muted">
         Correlativos por POS: FV-HN (facturas, CAI), NC-HN (notas de crédito, CAI), TK-HN (tickets),

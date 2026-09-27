@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Fuel } from 'lucide-react'
+import { Fuel, Cloud } from 'lucide-react'
 import { api } from '../../api/client'
 
 interface DispensersConfigTabProps {
   store: any
   updateStoreConfig: (patch: any) => void
   onMessage: (msg: string) => void
+  isCentralized?: boolean
 }
 
 export function DispensersConfigTab({
   store,
   updateStoreConfig,
   onMessage,
+  isCentralized,
 }: DispensersConfigTabProps) {
   const [mostrarBombas, setMostrarBombas] = useState(store.mostrarBombas ?? false)
   const [bombasLoading, setBombasLoading] = useState(false)
@@ -103,9 +105,16 @@ export function DispensersConfigTab({
 
   return (
     <div className="card-surface p-6 animate-in fade-in-0 zoom-in-95">
-      <div className="flex items-center gap-2">
-        <Fuel size={16} className="text-accent" />
-        <h3 className="text-sm font-semibold">Surtidores y Bombas</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Fuel size={16} className="text-accent" />
+          <h3 className="text-sm font-semibold">Surtidores y Bombas</h3>
+        </div>
+        {isCentralized && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+            <Cloud size={11} /> Configurado desde Matriz
+          </span>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between rounded-lg border border-border px-4 py-3">

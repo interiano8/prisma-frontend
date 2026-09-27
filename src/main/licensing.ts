@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import * as crypto from 'crypto'
+import { dialog } from 'electron'
 
 const PRODUCT = 'PRISMA_FRONTEND'
 
@@ -303,6 +304,7 @@ async function enroll(
 
   const pollMs = Math.max(1000, Number(process.env.LICENSING_POLL_MS ?? 10000))
   const maxAttempts = Number(process.env.LICENSING_ENROLL_MAX_ATTEMPTS ?? 0)
+  let notified = false
   for (let i = 0; maxAttempts === 0 || i < maxAttempts; i++) {
     await delay(pollMs)
     try {
@@ -315,6 +317,26 @@ async function enroll(
           fs.writeFileSync(licensePath, JSON.stringify(data.license))
           licLog(dir, 'Licencia recibida y guardada.')
           return
+        }
+        // Sigue PENDIENTE: avisar al usuario una sola vez (no molestar repetidamente).
+        if (!notified) {
+          notified = true
+          licLog(dir, `Esperando aprobación de licencia (machine ${machineId}).`)
+          try {
+            await dialog.showMessageBox({
+              type: 'info',
+              title: 'Licencia pendiente',
+              message: 'Su licencia está pendiente de aprobación.',
+              detail:
+                `Machine ID: ${machineId}\n\n` +
+                'Este equipo ya envió su solicitud. En cuanto la licencia sea ' +
+                'aprobada, la aplicación continuará automáticamente.',
+              buttons: ['Entendido'],
+              noLink: true,
+            })
+          } catch {
+            // sin ventana aún: solo log
+          }
         }
       }
     } catch (e) {
@@ -374,7 +396,7 @@ export async function ensureLicense(dir: string): Promise<void> {
 
   const licensePath = path.join(dir, 'license.key')
   const server = serverUrl()
-  licLog(dir, `--- Inicio de validación de licencia (servidor: ${server || '(sin servidor)'}) ---`)
+  licLog(dir, '--- Inicio de validación de licencia ---')
 
   if (!fs.existsSync(licensePath)) {
     if (server) {

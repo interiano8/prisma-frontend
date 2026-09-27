@@ -21,6 +21,8 @@ import {
   Printer
 } from 'lucide-react'
 
+import { usePermissions } from '../hooks/usePermissions'
+
 function localDate(iso?: string): string {
   return localDateServer(iso)
 }
@@ -48,6 +50,7 @@ function DetailRow({ label, value, strong, sub }: { label: string; value: string
 
 export default function ShiftScreen() {
   const { session, setShiftInfo } = useApp()
+  const { can } = usePermissions()
   const store = session!.storeConfig
   const shift = session!.shiftInfo
 
@@ -303,10 +306,16 @@ export default function ShiftScreen() {
               <button
                 className="btn-press flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
                 onClick={openShift}
-                disabled={busy}
+                disabled={busy || !can('shifts:open')}
+                title={!can('shifts:open') ? 'Permiso requerido: shifts:open' : undefined}
               >
                 <Play size={16} /> {busy ? 'Abriendo…' : 'Abrir turno'}
               </button>
+              {!can('shifts:open') && (
+                <p className="mt-1 text-center text-xs text-danger">
+                  Se requiere el permiso shifts:open para abrir turno.
+                </p>
+              )}
             </div>
           )}
 
@@ -376,10 +385,16 @@ export default function ShiftScreen() {
               <button
                 className="btn-press mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-danger py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                 onClick={closeShift}
-                disabled={busy}
+                disabled={busy || !can('shifts:close')}
+                title={!can('shifts:close') ? 'Permiso requerido: shifts:close' : undefined}
               >
                 <Square size={16} /> {busy ? 'Cerrando…' : 'Cerrar turno'}
               </button>
+              {!can('shifts:close') && (
+                <p className="mt-1 text-center text-xs text-danger">
+                  Se requiere el permiso shifts:close para cerrar turno.
+                </p>
+              )}
             </div>
           )}
 

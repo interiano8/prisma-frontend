@@ -2,6 +2,7 @@ import { Printer, X } from 'lucide-react'
 import { DocRow, docTypeClass, docTypeLabel, fmtDate, fmtMoney, fmtMoneyStore, buildDetailGroups } from './types'
 import { lineTaxAmount, lineTaxPct, taxTypeLabel } from '../../lib/document-taxes'
 import { paymentMethodName } from '../../lib/pos-logic'
+import { usePermissions } from '../../hooks/usePermissions'
 
 interface Props {
   selected: DocRow
@@ -47,6 +48,8 @@ export function DocumentDetailModal({
   setNcMsg,
   onSubmitNotaCredito
 }: Props) {
+  const { can } = usePermissions()
+
   return (
     <>
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -84,7 +87,7 @@ export function DocumentDetailModal({
               </div>
             </div>
             <div className="flex shrink-0 items-start gap-2">
-              {selected['POS Sales Doc_ Type'] !== 3 && (
+              {selected['POS Sales Doc_ Type'] !== 3 && can('sales:cancel') && (
                 <button
                   className="btn-press rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger/10"
                   onClick={() => {

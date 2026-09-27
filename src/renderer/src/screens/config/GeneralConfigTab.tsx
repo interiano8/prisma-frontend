@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutGrid, Palette, FolderOpen, Wifi, RefreshCw } from 'lucide-react'
+import { LayoutGrid, Palette, FolderOpen, Wifi, RefreshCw, Cloud } from 'lucide-react'
 import { api, getLealToken, setLealToken } from '../../api/client'
 
 const ACCENT_PRESETS = ['#0070f3', '#10b981', '#8b5cf6', '#ef4444', '#f97316', '#ec4899', '#06b6d4']
@@ -13,6 +13,7 @@ interface GeneralConfigTabProps {
   updateStoreConfig: (patch: any) => void
   onOpenSection: (section: 'campanas' | 'verificar') => void
   onMessage: (msg: string) => void
+  isCentralized?: boolean
 }
 
 export function GeneralConfigTab({
@@ -24,6 +25,7 @@ export function GeneralConfigTab({
   updateStoreConfig,
   onOpenSection,
   onMessage,
+  isCentralized,
 }: GeneralConfigTabProps) {
   const [mostrarTeclado, setMostrarTeclado] = useState(store.mostrarTeclado ?? true)
   const [tecladoLoading, setTecladoLoading] = useState(false)
@@ -216,7 +218,14 @@ export function GeneralConfigTab({
 
       {/* Parámetros Operativos */}
       <div className="card-surface p-6 animate-in fade-in-0 zoom-in-95">
-        <h3 className="text-sm font-semibold">Parámetros Operativos del POS</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Parámetros Operativos del POS</h3>
+          {isCentralized && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+              <Cloud size={11} /> Gobernanza Matriz
+            </span>
+          )}
+        </div>
 
         <div className="mt-4 flex items-center justify-between rounded-lg border border-border px-4 py-3">
           <div>
