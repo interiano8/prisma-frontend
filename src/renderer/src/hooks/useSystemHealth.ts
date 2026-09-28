@@ -16,6 +16,7 @@ export interface UseSystemHealthReturn {
   summary: string
   cloudSync: HealthCloudSync | null
   refresh: () => Promise<void>
+  syncNow: () => Promise<{ success: boolean; salesSynced: number; mastersUpdated: boolean; error?: string }>
 }
 
 export function formatHealthSummary(health: HealthCheckResult | null, status: SystemHealthStatus): string {
@@ -98,6 +99,22 @@ export function useSystemHealth(options?: UseSystemHealthOptions): UseSystemHeal
     }
   }, [enabled, pollIntervalMs, refresh])
 
+  const syncNow = useCallback(async () => {
+    try {
+      const res = await api.syncNow()
+      await refresh()
+      return res
+    } catch (err: any) {
+      await refresh()
+      return {
+        success: false,
+        salesSynced: 0,
+        mastersUpdated: false,
+        error: err.message || 'Error de sincronización'
+      }
+    }
+  }, [refresh])
+
   const summary = formatHealthSummary(health, status)
 
   return {
@@ -106,6 +123,7 @@ export function useSystemHealth(options?: UseSystemHealthOptions): UseSystemHeal
     lastChecked,
     summary,
     cloudSync: health?.cloudSync ?? null,
-    refresh
+    refresh,
+    syncNow
   }
 }

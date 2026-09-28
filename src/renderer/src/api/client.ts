@@ -397,6 +397,10 @@ export const api = {
       body: JSON.stringify({ storeId, currentPassword, newPassword })
     }),
 
-  // Health
-  health: () => request<HealthCheckResult>('/api/health')
+  // Health & Cloud Sync
+  health: () => request<HealthCheckResult>('/api/health'),
+  syncNow: () =>
+    request<{ success: boolean; salesSynced: number; mastersUpdated: boolean; error?: string }>('/api/health/sync-now', {
+      method: 'POST'
+    })
 }

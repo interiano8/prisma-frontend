@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Cloud, CloudOff, RefreshCw, CloudCheck } from 'lucide-react'
 import { useSystemHealth } from '../hooks/useSystemHealth'
 import type { HealthCloudSync } from '../api/types'
@@ -6,15 +6,17 @@ import type { HealthCloudSync } from '../api/types'
 export interface CloudSyncBadgeProps {
   syncInfo?: HealthCloudSync | null
   onRefresh?: () => void
+  onSyncNow?: () => Promise<any>
 }
 
-export function CloudSyncBadge({ syncInfo: propSyncInfo, onRefresh: propOnRefresh }: CloudSyncBadgeProps = {}) {
-  const { cloudSync: hookSyncInfo, refresh: hookRefresh } = useSystemHealth({
+export function CloudSyncBadge({ syncInfo: propSyncInfo, onRefresh: propOnRefresh, onSyncNow: propOnSyncNow }: CloudSyncBadgeProps = {}) {
+  const { cloudSync: hookSyncInfo, refresh: hookRefresh, syncNow: hookSyncNow } = useSystemHealth({
     enabled: propSyncInfo === undefined
   })
+  const [syncingNow, setSyncingNow] = useState(false)
 
   const sync = propSyncInfo !== undefined ? propSyncInfo : hookSyncInfo
-  const handleRefresh = propOnRefresh ?? hookRefresh
+  const handleSyncAction = propOnSyncNow ?? (propOnRefresh ? propOnRefresh : hookSyncNow)
 
   if (!sync || sync.status === 'not_configured') {
     return (
@@ -35,7 +37,7 @@ export function CloudSyncBadge({ syncInfo: propSyncInfo, onRefresh: propOnRefres
   let label = 'Nube al día'
   let icon = <CloudCheck size={14} className="text-success" />
 
-  if (status === 'syncing') {
+  if (syncingNow || status === 'syncing') {
     badgeColor = 'border-warning/40 bg-warning/10 text-warning'
     label = 'Sincronizando...'
     icon = <RefreshCw size={14} className="animate-spin text-warning" />
@@ -50,13 +52,21 @@ export function CloudSyncBadge({ syncInfo: propSyncInfo, onRefresh: propOnRefres
   }
 
   const formattedTime = lastSyncAt ? new Date(lastSyncAt).toLocaleTimeString() : 'Nunca'
-  const tooltip = `Estado: ${status}\nÚltima sinc: ${formattedTime}${latencyMs ? ` (${latencyMs}ms)` : ''}${pendingCount > 0 ? `\nVentas pendientes: ${pendingCount}` : ''}`
+  const tooltip = `Estado: ${status}\nÚltima sinc: ${formattedTime}${latencyMs ? ` (${latencyMs}ms)` : ''}${pendingCount > 0 ? `\nVentas pendientes: ${pendingCount}` : ''}\n(Clic para sincronizar ahora)`
+
+  const handleClick = async () => {
+    if (syncingNow) return
+    setSyncingNow(true)
+    try {
+      if (handleSyncAction) await handleSyncAction()
+    } finally {
+      setSyncingNow(false)
+    }
+  }
 
   return (
     <div
-      onClick={() => {
-        if (handleRefresh) void handleRefresh()
-      }}
+      onClick={handleClick}
       className={`btn-press flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${badgeColor}`}
       title={tooltip}
       data-testid="cloud-sync-badge"

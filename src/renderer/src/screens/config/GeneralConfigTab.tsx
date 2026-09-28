@@ -38,6 +38,33 @@ export function GeneralConfigTab({
   const [visualizacion, setVisualizacion] = useState<string>('multimedia')
   const [visualizacionLoading, setVisualizacionLoading] = useState(false)
 
+  // Sincronización en la nube (Backoffice)
+  const [syncingManual, setSyncingManual] = useState(false)
+  const [lastSyncResult, setLastSyncResult] = useState<string | null>(null)
+
+  async function handleManualSync() {
+    setSyncingManual(true)
+    setLastSyncResult(null)
+    try {
+      const res = await api.syncNow()
+      if (res.success) {
+        const msg = `Sincronización exitosa. Ventas enviadas: ${res.salesSynced}, catálogos actualizados: ${res.mastersUpdated ? 'Sí' : 'No'}.`
+        setLastSyncResult(msg)
+        onMessage(msg)
+      } else {
+        const err = res.error || 'No se pudo sincronizar con Backoffice central.'
+        setLastSyncResult(err)
+        onMessage(err)
+      }
+    } catch (e: any) {
+      const err = e.message || 'Error de conexión con el Backoffice central.'
+      setLastSyncResult(err)
+      onMessage(err)
+    } finally {
+      setSyncingManual(false)
+    }
+  }
+
   // Leal integration
   const [credUser, setCredUser] = useState('')
   const [credPass, setCredPass] = useState('')
@@ -212,6 +239,47 @@ export function GeneralConfigTab({
           >
             <span className="text-sm font-semibold">Verificar ticket</span>
             <span className="text-[11px] text-muted">Valida un correlativo de campaña</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Sincronización con Backoffice Central */}
+      <div className="card-surface p-6 animate-in fade-in-0 zoom-in-95">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Cloud size={16} className="text-accent" />
+            <h3 className="text-sm font-semibold">Sincronización con Backoffice Central</h3>
+          </div>
+          {isCentralized && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+              Gobernanza Matriz Activa
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          El POS se sincroniza periódicamente en segundo plano con el servidor Backoffice central para descargar usuarios,
+          precios y políticas, además de enviar las ventas registradas. Puede forzar una sincronización manual inmediata.
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3.5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-accent/10 p-2 text-accent">
+              <RefreshCw size={18} className={syncingManual ? 'animate-spin' : ''} />
+            </div>
+            <div>
+              <div className="text-sm font-medium">Forzar sincronización inmediata</div>
+              <div className="text-xs text-muted">
+                {lastSyncResult ? lastSyncResult : 'Actualiza usuarios, productos y sincroniza ventas acumuladas.'}
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn-press flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+            onClick={handleManualSync}
+            disabled={syncingManual}
+          >
+            <RefreshCw size={14} className={syncingManual ? 'animate-spin' : ''} />
+            <span>{syncingManual ? 'Sincronizando…' : 'Sincronizar ahora'}</span>
           </button>
         </div>
       </div>

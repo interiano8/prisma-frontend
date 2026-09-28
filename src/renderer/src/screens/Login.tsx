@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client'
 import { useApp } from '../store'
-import { Nfc, Settings, X, Sun, Moon } from 'lucide-react'
+import { Nfc, Settings, X, Sun, Moon, RefreshCw } from 'lucide-react'
 import PrismaLogo from '../components/PrismaLogo'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Theme } from '../theme'
@@ -13,6 +13,8 @@ export default function Login() {
   const [rfid, setRfid] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncSuccess, setSyncSuccess] = useState('')
 
   const [configOpen, setConfigOpen] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
@@ -71,6 +73,25 @@ export default function Login() {
       setError(e.message || 'Error de login RFID')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSyncNow() {
+    setError('')
+    setSyncSuccess('')
+    setSyncing(true)
+    try {
+      const res = await api.syncNow()
+      if (res.success) {
+        setSyncSuccess('Catálogo de usuarios actualizado desde Backoffice.')
+        setTimeout(() => setSyncSuccess(''), 4000)
+      } else {
+        setError(res.error || 'No se pudo sincronizar con Backoffice.')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Error de conexión al sincronizar con Backoffice.')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -159,6 +180,12 @@ export default function Login() {
           </div>
         )}
 
+        {syncSuccess && (
+          <div className="mt-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+            {syncSuccess}
+          </div>
+        )}
+
         <button
           className="btn-press mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
           onClick={handleSubmit}
@@ -166,6 +193,19 @@ export default function Login() {
         >
           {loading ? 'Entrando…' : 'Entrar'}
         </button>
+
+        <div className="mt-4 flex items-center justify-center border-t border-border pt-3">
+          <button
+            type="button"
+            className="btn-press flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-primary disabled:opacity-50"
+            onClick={handleSyncNow}
+            disabled={syncing || loading}
+            title="Forzar actualización de usuarios y configuración desde Backoffice central"
+          >
+            <RefreshCw size={13} className={syncing ? 'animate-spin text-accent' : ''} />
+            <span>{syncing ? 'Sincronizando con Backoffice…' : 'Sincronizar usuarios'}</span>
+          </button>
+        </div>
       </div>
 
       {configOpen && (
