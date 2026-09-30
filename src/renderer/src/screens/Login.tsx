@@ -139,9 +139,9 @@ export default function Login() {
 
         <label className="label-base">Usuario</label>
         <input
-          className="input-base w-full"
+          className="input-base w-full uppercase"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => setUsername(e.target.value.toUpperCase())}
           autoFocus
         />
 
