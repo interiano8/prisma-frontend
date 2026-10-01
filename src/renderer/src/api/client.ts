@@ -289,6 +289,7 @@ export const api = {
       mostrarTeclado: boolean
       declararMontosIniciales: boolean
       visualizacion: string
+      caras?: number[]
     }>(`/api/pos-config/${encodeURIComponent(posNo)}`),
 
   updatePosConfig: (

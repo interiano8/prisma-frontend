@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Fuel, Cloud, Plus } from 'lucide-react'
+import { Fuel, Cloud } from 'lucide-react'
 import { api } from '../../api/client'
 
 interface DispensersConfigTabProps {
@@ -19,7 +19,6 @@ export function DispensersConfigTab({
   const [bombasLoading, setBombasLoading] = useState(false)
   const [caras, setCaras] = useState<number[]>(store.caras ?? [])
   const [bombasDisponibles, setBombasDisponibles] = useState<{ pumpId: number }[]>([])
-  const [nuevaCara, setNuevaCara] = useState('')
   const [carasLoading, setCarasLoading] = useState(false)
   const [numTransacciones, setNumTransacciones] = useState(store.numTransaccionesBombas ?? 20)
   const [numTxLoading, setNumTxLoading] = useState(false)
@@ -64,15 +63,6 @@ export function DispensersConfigTab({
     setCaras((prev) =>
       prev.includes(pumpId) ? prev.filter((p) => p !== pumpId) : [...prev, pumpId].sort((a, b) => a - b)
     )
-  }
-
-  function addCara() {
-    const val = parseInt(nuevaCara.trim(), 10)
-    if (isNaN(val) || val <= 0) return
-    if (!caras.includes(val)) {
-      setCaras((prev) => [...prev, val].sort((a, b) => a - b))
-    }
-    setNuevaCara('')
   }
 
   async function saveCaras() {
@@ -161,7 +151,7 @@ export function DispensersConfigTab({
           <div>
             <div className="text-sm font-medium">Caras asignadas a este POS</div>
             <div className="text-xs text-muted">
-              Selecciona o agrega los números de cara/bomba para este punto de venta.
+              Selecciona las caras/bombas de la tienda que atiende este punto de venta.
             </div>
           </div>
           <button
@@ -173,7 +163,7 @@ export function DispensersConfigTab({
           </button>
         </div>
 
-        {allPumpIds.length > 0 && (
+        {allPumpIds.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {allPumpIds.map((pumpId) => {
               const active = caras.includes(pumpId)
@@ -192,30 +182,11 @@ export function DispensersConfigTab({
               )
             })}
           </div>
+        ) : (
+          <div className="mt-3 text-xs text-muted">
+            No hay bombas/caras configuradas en esta tienda desde el Backoffice.
+          </div>
         )}
-
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            placeholder="Número de cara (ej. 5)"
-            value={nuevaCara}
-            onChange={(e) => setNuevaCara(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addCara()
-              }
-            }}
-            className="input-base w-56 font-mono text-sm"
-          />
-          <button
-            onClick={addCara}
-            className="btn-press rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent/10 flex items-center gap-1"
-          >
-            <Plus size={14} /> Agregar Cara
-          </button>
-        </div>
       </div>
 
       <div className="mt-3 flex items-end gap-2">
