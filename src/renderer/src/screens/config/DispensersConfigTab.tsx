@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Fuel, Cloud } from 'lucide-react'
+import { Fuel, Cloud, Plus } from 'lucide-react'
 import { api } from '../../api/client'
 
 interface DispensersConfigTabProps {
@@ -18,7 +18,8 @@ export function DispensersConfigTab({
   const [mostrarBombas, setMostrarBombas] = useState(store.mostrarBombas ?? false)
   const [bombasLoading, setBombasLoading] = useState(false)
   const [caras, setCaras] = useState<number[]>(store.caras ?? [])
-  const [bombasDisponibles, setBombasDisponibles] = useState<{ pumpId: number; productName?: string }[]>([])
+  const [bombasDisponibles, setBombasDisponibles] = useState<{ pumpId: number }[]>([])
+  const [nuevaCara, setNuevaCara] = useState('')
   const [carasLoading, setCarasLoading] = useState(false)
   const [numTransacciones, setNumTransacciones] = useState(store.numTransaccionesBombas ?? 20)
   const [numTxLoading, setNumTxLoading] = useState(false)
@@ -29,7 +30,7 @@ export function DispensersConfigTab({
     api
       .dispensers()
       .then((ds) =>
-        setBombasDisponibles(ds.map((d) => ({ pumpId: d.pumpId, productName: d.productName })))
+        setBombasDisponibles(ds.map((d) => ({ pumpId: d.pumpId })))
       )
       .catch(() => {})
 
@@ -39,6 +40,7 @@ export function DispensersConfigTab({
         if (c.mostrarBombas !== undefined) setMostrarBombas(c.mostrarBombas)
         if (c.numTransaccionesBombas !== undefined) setNumTransacciones(c.numTransaccionesBombas)
         if (c.minutosAtrasada !== undefined) setMinutosAtrasada(c.minutosAtrasada)
+        if (Array.isArray(c.caras)) setCaras(c.caras)
       })
       .catch(() => {})
   }, [store.posNumber])
@@ -60,8 +62,17 @@ export function DispensersConfigTab({
 
   function toggleCara(pumpId: number) {
     setCaras((prev) =>
-      prev.includes(pumpId) ? prev.filter((p) => p !== pumpId) : [...prev, pumpId]
+      prev.includes(pumpId) ? prev.filter((p) => p !== pumpId) : [...prev, pumpId].sort((a, b) => a - b)
     )
+  }
+
+  function addCara() {
+    const val = parseInt(nuevaCara.trim(), 10)
+    if (isNaN(val) || val <= 0) return
+    if (!caras.includes(val)) {
+      setCaras((prev) => [...prev, val].sort((a, b) => a - b))
+    }
+    setNuevaCara('')
   }
 
   async function saveCaras() {
@@ -102,6 +113,10 @@ export function DispensersConfigTab({
       setMinAtrasadaLoading(false)
     }
   }
+
+  const allPumpIds = Array.from(
+    new Set([...bombasDisponibles.map((b) => b.pumpId), ...caras])
+  ).sort((a, b) => a - b)
 
   return (
     <div className="card-surface p-6 animate-in fade-in-0 zoom-in-95">
@@ -146,7 +161,7 @@ export function DispensersConfigTab({
           <div>
             <div className="text-sm font-medium">Caras asignadas a este POS</div>
             <div className="text-xs text-muted">
-              Selecciona las bombas de este punto de venta. Las demás se ocultan en Venta (accesibles con "Ver todas").
+              Selecciona o agrega los números de cara/bomba para este punto de venta.
             </div>
           </div>
           <button
@@ -157,27 +172,50 @@ export function DispensersConfigTab({
             {carasLoading ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
-        {bombasDisponibles.length > 0 && (
+
+        {allPumpIds.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {bombasDisponibles.map((b) => {
-              const active = caras.includes(b.pumpId)
+            {allPumpIds.map((pumpId) => {
+              const active = caras.includes(pumpId)
               return (
                 <button
-                  key={b.pumpId}
-                  onClick={() => toggleCara(b.pumpId)}
+                  key={pumpId}
+                  onClick={() => toggleCara(pumpId)}
                   className={`btn-press rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                     active
                       ? 'border-accent/40 bg-accent/10 text-accent font-medium'
                       : 'border-border text-muted hover:text-primary'
                   }`}
                 >
-                  Bomba {b.pumpId}
-                  {b.productName ? ` · ${b.productName}` : ''}
+                  Bomba {pumpId}
                 </button>
               )
             })}
           </div>
         )}
+
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            placeholder="Número de cara (ej. 5)"
+            value={nuevaCara}
+            onChange={(e) => setNuevaCara(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addCara()
+              }
+            }}
+            className="input-base w-56 font-mono text-sm"
+          />
+          <button
+            onClick={addCara}
+            className="btn-press rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent/10 flex items-center gap-1"
+          >
+            <Plus size={14} /> Agregar Cara
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex items-end gap-2">
