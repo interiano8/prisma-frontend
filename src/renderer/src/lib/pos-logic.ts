@@ -27,16 +27,33 @@ export function fmtQty(n: number): string {
   return Number(n).toFixed(6)
 }
 
-/** Formatea un volumen en galones y litros (6 decimales por defecto). */
+/** Formatea un volumen en la unidad primaria elegida y muestra la conversión entre paréntesis. */
 export function fmtVolumen(
   galones: number | string | null | undefined,
   litros: number | string | null | undefined,
   decimals = 6,
+  unidadMedida?: string | null,
 ): string {
   const opts = { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
-  const g = Number(galones || 0).toLocaleString('en-US', opts)
-  const l = Number(litros || 0).toLocaleString('en-US', opts)
-  return `${g} gal = ${l} litros`
+  const u = (unidadMedida || '').toUpperCase()
+  const isLitros = u.startsWith('LT') || u === 'LITRO' || u === 'LITROS' || u === 'L'
+
+  let gNum = Number(galones || 0)
+  let lNum = Number(litros || 0)
+
+  if (isLitros) {
+    if (!lNum && gNum) lNum = gNum
+    if (!gNum && lNum) gNum = lNum / 3.785411784
+    const lStr = lNum.toLocaleString('en-US', opts)
+    const gStr = (lNum / 3.785411784).toLocaleString('en-US', opts)
+    return `${lStr} Lts (${gStr} Gal)`
+  } else {
+    if (!gNum && lNum) gNum = lNum
+    if (!lNum && gNum) lNum = gNum * 3.785411784
+    const gStr = gNum.toLocaleString('en-US', opts)
+    const lStr = (gNum * 3.785411784).toLocaleString('en-US', opts)
+    return `${gStr} Gal (${lStr} Lts)`
+  }
 }
 
 /** Formatea cantidad + unidad de medida para el resumen (undefined si no hay unidad). */

@@ -144,7 +144,8 @@ export default function PumpModal(props: Props) {
         <div className="flex flex-col items-end gap-0.5">
           <span className="font-mono text-lg font-semibold tabular-nums">{fmt(t.amount)}</span>
           <span className="font-mono text-xs text-muted tabular-nums">
-            {fmtQty(t.cantidad)} {t.unidad === 'litros' ? 'lts' : 'gal'}
+            {fmtQty(t.cantidad)}{' '}
+            {(t.unidad || '').toLowerCase() === 'litros' || (t.unidad || '').toUpperCase().startsWith('LT') ? 'lts' : 'gal'}
           </span>
           <span className="font-mono text-xs text-accent tabular-nums">@{fmt(t.precio)}</span>
         </div>

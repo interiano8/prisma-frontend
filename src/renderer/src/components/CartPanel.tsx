@@ -221,7 +221,8 @@ export default function CartPanel(props: Props) {
               {item.saleId && (
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted">
                   <span className="font-mono font-semibold tabular-nums text-primary">
-                    {fmtQty(item.qty)} {item.unidad === 'litros' ? 'lts' : 'gal'}
+                    {fmtQty(item.qty)}{' '}
+                    {(item.unidad || '').toLowerCase() === 'litros' || (item.unidad || '').toUpperCase().startsWith('LT') ? 'lts' : 'gal'}
                   </span>
                   <span className="font-mono font-semibold tabular-nums text-primary">
                     @ {fmt(item.price)}

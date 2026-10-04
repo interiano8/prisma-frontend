@@ -192,12 +192,16 @@ describe('pos-logic', () => {
   })
 
   describe('fmtVolumen', () => {
-    it('formatea galones y litros con 6 decimales', () => {
-      expect(fmtVolumen(20, 75.70823568)).toBe('20.000000 gal = 75.708236 litros')
+    it('formatea galones y litros con 6 decimales para Galones', () => {
+      expect(fmtVolumen(20, 75.70823568)).toBe('20.000000 Gal (75.708236 Lts)')
+    })
+
+    it('formatea galones y litros para Litros', () => {
+      expect(fmtVolumen(null, 75.70823568, 6, 'LT')).toBe('75.708236 Lts (20.000000 Gal)')
     })
 
     it('formatea valores nulos como cero con 6 decimales', () => {
-      expect(fmtVolumen(null, undefined)).toBe('0.000000 gal = 0.000000 litros')
+      expect(fmtVolumen(null, undefined)).toBe('0.000000 Gal (0.000000 Lts)')
     })
   })
 

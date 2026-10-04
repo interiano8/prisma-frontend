@@ -96,7 +96,7 @@ export function buildShiftCloseLines(
   L(separator(ctx.columns))
   for (const c of report.combustibles || []) {
     L(`${c.name}`)
-    const volumen = fmtVolumen(c.volumenGalones, c.volumenLitros)
+    const volumen = fmtVolumen(c.volumenGalones, c.volumenLitros, 6, c.unidadMedida)
     L(`  ${money(c.total).padStart(ctx.columns - 2)}`)
     L(`  ${volumen}`)
   }
@@ -110,7 +110,7 @@ export function buildShiftCloseLines(
       bold: true,
     })
   if (totales.volumenGalones != null || totales.volumenLitros != null)
-    L(`Volumen: ${fmtVolumen(totales.volumenGalones, totales.volumenLitros)}`)
+    L(`Volumen: ${fmtVolumen(totales.volumenGalones, totales.volumenLitros, 6, 'GL')}`)
 
   // Impuestos
   if (report.impuestos && report.impuestos.length > 0) {

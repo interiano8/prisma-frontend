@@ -59,8 +59,8 @@ describe('buildShiftCloseLines', () => {
 
   it('muestra combustible con volumen en galones y litros', () => {
     const text = buildShiftCloseLines(report, ctx).map((l) => l.text).join('\n')
-    expect(text).toContain('20.000000 gal = 75.708000 litros')
-    expect(text).toContain('Volumen: 20.000000 gal = 75.708000 litros')
+    expect(text).toContain('20.000000 Gal (75.708236 Lts)')
+    expect(text).toContain('Volumen: 20.000000 Gal (75.708236 Lts)')
   })
 
   it('muestra otros productos con su unidad de medida', () => {
