@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { Customer } from '../api/types'
 import { formatRtn } from '../format'
-import { UserRound, Plus, X } from 'lucide-react'
+import { UserRound, Plus, X, Wallet } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export default function CustomerModal(props: Props) {
+  const [selectedSaldoCode, setSelectedSaldoCode] = useState<string | null>(null)
+
   if (!props.open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -60,58 +63,94 @@ export default function CustomerModal(props: Props) {
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                {props.results.map((c) => (
-                  <button
-                    key={c.code}
-                    disabled={!c.rtf}
-                    className={`btn-press flex w-full items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left text-sm ${
-                      c.rtf ? 'hover:border-accent/40' : 'opacity-50'
-                    }`}
-                    onClick={() => props.onSelect(c)}
-                  >
-                    <span className="flex flex-1 flex-col leading-tight">
-                      <span className="truncate font-semibold">{c.name}</span>
-                      <span className="font-mono text-xs text-muted">
-                        Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
-                      </span>
-                      {c.billingType === 0 && c.creditLimit != null && (
-                        <span className="mt-0.5 font-mono text-[11px] text-muted">
-                          Límite: L {Number(c.creditLimit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ·
-                          Saldo: L {Number(c.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ·
-                          <strong className={(Number(c.creditLimit || 0) - Number(c.balance || 0)) <= 0 ? 'text-danger font-bold' : 'text-accent font-semibold'}>
-                            {' '}Disp: L {Math.max(0, Number(c.creditLimit || 0) - Number(c.balance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                          </strong>
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {!c.rtf && (
-                        <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
-                          Sin RTN
-                        </span>
-                      )}
-                      {c.billingType === 0 ? (
-                        c.blockOnOverdue && c.hasOverdueInvoices ? (
-                          <span className="rounded-full bg-danger/15 px-2 py-0.5 text-[11px] font-bold text-danger border border-danger/30">
-                            En Mora
+                {props.results.map((c) => {
+                  const isSaldoOpen = selectedSaldoCode === c.code
+                  const limit = Number(c.creditLimit || 0)
+                  const bal = Number(c.balance || 0)
+                  const disp = Math.max(0, limit - bal)
+                  return (
+                    <div
+                      key={c.code}
+                      className={`flex flex-col rounded-lg border border-border bg-card transition-colors ${
+                        c.rtf ? 'hover:border-accent/40' : 'opacity-60'
+                      }`}
+                    >
+                      <div
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm cursor-pointer"
+                        onClick={() => c.rtf && props.onSelect(c)}
+                      >
+                        <span className="flex flex-1 flex-col leading-tight">
+                          <span className="truncate font-semibold">{c.name}</span>
+                          <span className="font-mono text-xs text-muted">
+                            Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
                           </span>
-                        ) : Number(c.creditLimit || 0) <= Number(c.balance || 0) ? (
-                          <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-warning border border-warning/30">
-                            Sin Crédito
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-                            Crédito
-                          </span>
-                        )
-                      ) : (
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
-                          Contado
                         </span>
+
+                        <span className="flex shrink-0 items-center gap-2">
+                          {!c.rtf && (
+                            <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
+                              Sin RTN
+                            </span>
+                          )}
+
+                          {c.billingType === 0 && (
+                            <button
+                              type="button"
+                              className={`btn-press inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${
+                                isSaldoOpen
+                                  ? 'border-accent bg-accent/20 text-accent'
+                                  : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedSaldoCode(isSaldoOpen ? null : c.code)
+                              }}
+                              title="Consultar saldo de crédito"
+                            >
+                              <Wallet size={13} />
+                              {isSaldoOpen ? 'Ocultar Saldo' : 'Consultar Saldo'}
+                            </button>
+                          )}
+
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                            }`}
+                          >
+                            {c.billingType === 0 ? 'Crédito' : 'Contado'}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* PANEL EXPANDIBLE DE SALDO DE CRÉDITO */}
+                      {c.billingType === 0 && isSaldoOpen && (
+                        <div className="border-t border-border/60 bg-muted/20 px-3 py-2 text-xs animate-in fade-in-0">
+                          <div className="grid grid-cols-3 gap-2 font-mono">
+                            <div>
+                              <span className="text-[10px] text-muted block font-semibold uppercase">Límite Autorizado</span>
+                              <span className="font-bold text-foreground">L {limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-muted block font-semibold uppercase">Saldo Acumulado</span>
+                              <span className="font-bold text-muted-foreground">L {bal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-muted block font-semibold uppercase">Disponible</span>
+                              <span className={`font-bold ${disp <= 0 ? 'text-danger' : 'text-accent'}`}>
+                                L {disp.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                          {c.blockOnOverdue && c.hasOverdueInvoices && (
+                            <div className="mt-1.5 text-[11px] font-bold text-danger flex items-center gap-1">
+                              ⚠️ Cliente posee facturas en mora / vencidas
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </span>
-                  </button>
-                ))}
+                    </div>
+                  )
+                })}
               </div>
             </>
           )}
