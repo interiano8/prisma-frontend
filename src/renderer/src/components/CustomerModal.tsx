@@ -17,6 +17,7 @@ interface Props {
 
 export default function CustomerModal(props: Props) {
   const [selectedSaldoCode, setSelectedSaldoCode] = useState<string | null>(null)
+  const [customAmountInput, setCustomAmountInput] = useState<string>('')
 
   if (!props.open) return null
   return (
@@ -124,7 +125,7 @@ export default function CustomerModal(props: Props) {
 
                       {/* PANEL EXPANDIBLE DE SALDO DE CRÉDITO */}
                       {c.billingType === 0 && isSaldoOpen && (
-                        <div className="border-t border-border/60 bg-muted/20 px-3 py-2 text-xs animate-in fade-in-0">
+                        <div className="border-t border-border/60 bg-muted/20 px-3 py-2.5 text-xs animate-in fade-in-0 flex flex-col gap-2">
                           <div className="grid grid-cols-3 gap-2 font-mono">
                             <div>
                               <span className="text-[10px] text-muted block font-semibold uppercase">Límite Autorizado</span>
@@ -141,8 +142,43 @@ export default function CustomerModal(props: Props) {
                               </span>
                             </div>
                           </div>
+
+                          {/* EVALUADOR DE MONTO INVOLUCRADO / PERSONALIZADO */}
+                          <div className="mt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-border/40 pt-2 text-xs">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="font-semibold text-muted text-[11px]">Validar monto (L):</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={customAmountInput}
+                                onChange={(e) => setCustomAmountInput(e.target.value)}
+                                className="input-base h-7 w-28 font-mono text-xs px-2"
+                              />
+                            </div>
+
+                            {customAmountInput.trim() !== '' && (
+                              <div className="flex items-center gap-1.5 font-mono text-xs">
+                                {c.blockOnOverdue && c.hasOverdueInvoices ? (
+                                  <span className="rounded bg-danger/15 px-2 py-0.5 font-bold text-danger border border-danger/30">
+                                    ❌ Rechazado: Cliente en mora
+                                  </span>
+                                ) : Number(customAmountInput) <= disp ? (
+                                  <span className="rounded bg-success/15 px-2 py-0.5 font-bold text-success border border-success/30">
+                                    ✅ Aprobado (L {Number(customAmountInput).toLocaleString('en-US', { minimumFractionDigits: 2 })} ≤ Disp L {disp.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                  </span>
+                                ) : (
+                                  <span className="rounded bg-danger/15 px-2 py-0.5 font-bold text-danger border border-danger/30">
+                                    ❌ Rechazado: Excede por L {(Number(customAmountInput) - disp).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
                           {c.blockOnOverdue && c.hasOverdueInvoices && (
-                            <div className="mt-1.5 text-[11px] font-bold text-danger flex items-center gap-1">
+                            <div className="mt-1 text-[11px] font-bold text-danger flex items-center gap-1">
                               ⚠️ Cliente posee facturas en mora / vencidas
                             </div>
                           )}
