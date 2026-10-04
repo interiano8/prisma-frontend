@@ -70,10 +70,19 @@ export default function CustomerModal(props: Props) {
                     onClick={() => props.onSelect(c)}
                   >
                     <span className="flex flex-1 flex-col leading-tight">
-                      <span className="truncate">{c.name}</span>
+                      <span className="truncate font-semibold">{c.name}</span>
                       <span className="font-mono text-xs text-muted">
                         Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
                       </span>
+                      {c.billingType === 0 && c.creditLimit != null && (
+                        <span className="mt-0.5 font-mono text-[11px] text-muted">
+                          Límite: L {Number(c.creditLimit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ·
+                          Saldo: L {Number(c.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ·
+                          <strong className={(Number(c.creditLimit || 0) - Number(c.balance || 0)) <= 0 ? 'text-danger font-bold' : 'text-accent font-semibold'}>
+                            {' '}Disp: L {Math.max(0, Number(c.creditLimit || 0) - Number(c.balance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </strong>
+                        </span>
+                      )}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {!c.rtf && (
@@ -81,13 +90,25 @@ export default function CustomerModal(props: Props) {
                           Sin RTN
                         </span>
                       )}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          c.billingType === 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
-                        }`}
-                      >
-                        {c.billingType === 0 ? 'Crédito' : 'Contado'}
-                      </span>
+                      {c.billingType === 0 ? (
+                        c.blockOnOverdue && c.hasOverdueInvoices ? (
+                          <span className="rounded-full bg-danger/15 px-2 py-0.5 text-[11px] font-bold text-danger border border-danger/30">
+                            En Mora
+                          </span>
+                        ) : Number(c.creditLimit || 0) <= Number(c.balance || 0) ? (
+                          <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-warning border border-warning/30">
+                            Sin Crédito
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+                            Crédito
+                          </span>
+                        )
+                      ) : (
+                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+                          Contado
+                        </span>
+                      )}
                     </span>
                   </button>
                 ))}

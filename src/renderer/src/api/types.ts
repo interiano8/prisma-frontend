@@ -85,6 +85,11 @@ export interface Customer {
   address: string
   blocked?: boolean
   billingType?: number
+  creditLimit?: number
+  creditDays?: number
+  blockOnOverdue?: boolean
+  balance?: number
+  hasOverdueInvoices?: boolean
 }
 
 export interface PaymentMethod {
