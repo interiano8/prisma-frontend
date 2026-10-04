@@ -23,6 +23,7 @@ import {
   mapWsStatus,
   applyWsState,
   mergeWsStates,
+  calcularCreditoDisponible,
 } from './pos-logic'
 import type { Dispenser, PaymentMethod, PumpTransaction } from '../api/types'
 
@@ -269,6 +270,45 @@ describe('pos-logic', () => {
     it('devuelve el mensaje sin detalles cuando no hay pendientes', () => {
       expect(formatCloseBlock('Turno cerrado.', undefined)).toBe('Turno cerrado.')
       expect(formatCloseBlock('Error', { caras: [], ventas: [] })).toBe('Error')
+    })
+  })
+
+  describe('calcularCreditoDisponible', () => {
+    it('permite la venta si el disponible cubre la venta actual', () => {
+      const res = calcularCreditoDisponible({
+        creditLimit: 100000,
+        saldoCentral: 65000,
+        facturasPendientesLocales: 15000,
+        totalVentaActual: 8000,
+      })
+      expect(res.disponible).toBe(20000)
+      expect(res.isAllowed).toBe(true)
+    })
+
+    it('rechaza la venta si el disponible es insuficiente', () => {
+      const res = calcularCreditoDisponible({
+        creditLimit: 100000,
+        saldoCentral: 65000,
+        facturasPendientesLocales: 20000,
+        totalVentaActual: 18000,
+      })
+      expect(res.disponible).toBe(15000)
+      expect(res.isAllowed).toBe(false)
+      expect(res.reason).toContain('Crédito insuficiente')
+    })
+
+    it('rechaza la venta si el cliente está en mora', () => {
+      const res = calcularCreditoDisponible({
+        creditLimit: 100000,
+        saldoCentral: 10000,
+        facturasPendientesLocales: 0,
+        totalVentaActual: 5000,
+        blockOnOverdue: true,
+        hasOverdueInvoices: true,
+      })
+      expect(res.disponible).toBe(0)
+      expect(res.isAllowed).toBe(false)
+      expect(res.reason).toBe('Cliente en mora con facturas vencidas')
     })
   })
 })

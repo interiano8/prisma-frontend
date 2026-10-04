@@ -252,3 +252,56 @@ export function mergeWsStates(
     return ws ? applyWsState(d, ws) : d
   })
 }
+
+export interface CreditoDisponibleParams {
+  creditLimit: number
+  saldoCentral: number
+  facturasPendientesLocales: number
+  totalVentaActual: number
+  hasOverdueInvoices?: boolean
+  blockOnOverdue?: boolean
+}
+
+export interface CreditoDisponibleResult {
+  disponible: number
+  isAllowed: boolean
+  reason?: string
+}
+
+/**
+ * Calcula el crédito disponible considerando el límite autorizado, saldo central,
+ * facturas locales no sincronizadas y monto de la venta actual.
+ * Prohíbe la venta si se excede el disponible o si hay morosidad acumulada.
+ */
+export function calcularCreditoDisponible(
+  params: CreditoDisponibleParams,
+): CreditoDisponibleResult {
+  const limit = Number(params.creditLimit || 0)
+  const saldo = Number(params.saldoCentral || 0)
+  const pendientes = Number(params.facturasPendientesLocales || 0)
+  const venta = Number(params.totalVentaActual || 0)
+
+  if (params.blockOnOverdue && params.hasOverdueInvoices) {
+    return {
+      disponible: 0,
+      isAllowed: false,
+      reason: 'Cliente en mora con facturas vencidas',
+    }
+  }
+
+  const disponible = round2(limit - (saldo + pendientes))
+  const isAllowed = disponible >= venta
+
+  if (!isAllowed) {
+    return {
+      disponible,
+      isAllowed: false,
+      reason: `Crédito insuficiente (Disponible: ${disponible.toFixed(2)}, Requerido: ${venta.toFixed(2)})`,
+    }
+  }
+
+  return {
+    disponible,
+    isAllowed: true,
+  }
+}
