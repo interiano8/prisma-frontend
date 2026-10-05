@@ -7,7 +7,7 @@ import type {
   PaymentMethod,
   StoreConfig
 } from '../api/types'
-import { errMsg, round2 } from '../lib/pos-logic'
+import { calcularCreditoDisponible, errMsg, round2 } from '../lib/pos-logic'
 import { computePaidChange, Totals } from '../lib/pos-cart'
 import type { PrintTicketInput } from '../printing'
 import { api } from '../api/client'
@@ -48,7 +48,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
   const [tasaCambio, setTasaCambio] = useState(1)
   const [busy, setBusy] = useState(false)
   const amountInputsRef = useRef<(HTMLInputElement | null)[]>([])
-  const [billingType, setBillingType] = useState<'contado' | 'credito'>('contado')
+  const [billingType, setBillingType] = useState<'contado' | 'credito'>(
+    opts.customer?.billingType === 0 ? 'credito' : 'contado'
+  )
   const [esTicket, setEsTicket] = useState(false)
 
   useEffect(() => {
@@ -100,13 +102,21 @@ export function useCheckout(opts: UseCheckoutOptions) {
   }
 
   function selectCustomer(c: Customer) {
+    if (c.blocked) {
+      opts.setMessage(`❌ El cliente ${c.name || c.code} está bloqueado en Casa Matriz y no puede facturar.`)
+      return
+    }
     if (!c.rtf) {
       opts.setMessage(`El cliente ${c.name} no tiene RTN y no puede facturar.`)
       return
     }
     const mode = customerMode
+    const isCred = mode === 'credito' || c.billingType === 0
     opts.onCustomerChange(c)
-    setBillingType(mode === 'credito' ? 'credito' : 'contado')
+    setBillingType(isCred ? 'credito' : 'contado')
+    if (isCred) {
+      setPayments([])
+    }
     setIsFidelizacion(mode === 'fidelizacion')
     setCustomerQuery('')
     setCustomerResults([])
@@ -187,6 +197,22 @@ export function useCheckout(opts: UseCheckoutOptions) {
   }
 
   function addPayment(method: PaymentMethod) {
+    if (billingType === 'credito') {
+      const isCreditoMethod =
+        method.code?.toUpperCase() === 'CREDITO' ||
+        method.categoria?.toUpperCase() === 'CREDITO' ||
+        method.description?.toLowerCase().includes('crédito') ||
+        method.description?.toLowerCase().includes('credito')
+
+      if (!isCreditoMethod) {
+        opts.setMessage('En ventas al crédito solo se permite la forma de pago Crédito.')
+        return
+      }
+      if (payments.length >= 1) {
+        opts.setMessage('En ventas al crédito solo se permite un único pago al 100% Crédito.')
+        return
+      }
+    }
     const remaining = Math.max(0, round2(opts.totals.total - paid))
     if (remaining <= 0) {
       opts.setMessage('El total ya está cubierto.')
@@ -314,6 +340,38 @@ export function useCheckout(opts: UseCheckoutOptions) {
       if (!chofer.trim()) {
         opts.setMessage('Ingrese el conductor para facturar al crédito.')
         return
+      }
+
+      // Validar que no haya pagos mixtos agregados
+      const tieneNoCredito = payments.some(
+        (p) =>
+          p.code?.toUpperCase() !== 'CREDITO' &&
+          !p.method?.toLowerCase().includes('crédito') &&
+          !p.method?.toLowerCase().includes('credito')
+      )
+      if (tieneNoCredito) {
+        opts.setMessage('En ventas al crédito no se permiten formas de pago mixtas (debe ser 100% Crédito).')
+        return
+      }
+
+      // Validar crédito disponible y morosidad si la estación tiene activada la validación de saldo
+      const shouldValidateCredit = opts.store?.validarSaldoCredito !== false
+      if (shouldValidateCredit) {
+        const check = calcularCreditoDisponible({
+          creditLimit: opts.customer.creditLimit || 0,
+          saldoCentral: opts.customer.balance || 0,
+          facturasPendientesLocales: 0,
+          totalVentaActual: opts.totals.total,
+          hasOverdueInvoices: opts.customer.hasOverdueInvoices,
+          blockOnOverdue: opts.customer.blockOnOverdue
+        })
+
+        if (!check.isAllowed) {
+          opts.setMessage(check.reason || 'Crédito insuficiente o cliente en mora.')
+          return
+        }
+      } else {
+        opts.setMessage('⚠️ Consulta de saldo deshabilitada en esta estación. Venta emitida al crédito sin validación de saldo.')
       }
     }
     setBusy(true)

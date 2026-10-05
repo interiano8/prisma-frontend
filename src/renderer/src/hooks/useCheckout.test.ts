@@ -48,6 +48,8 @@ describe('useCheckout - Manejo de error en acumulación Leal', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.spyOn(api, 'validateCorrelative').mockResolvedValue({ isValid: true } as any)
+    vi.spyOn(api, 'searchCustomers').mockResolvedValue([])
+    vi.spyOn(api, 'tasaCambioLatest').mockResolvedValue({ tasa: 1 } as any)
   })
 
   it('muestra diálogo interactivo con opciones Reintentar y Facturar sin acumular ante error en Leal', async () => {
@@ -245,5 +247,163 @@ describe('useCheckout - Manejo de error en acumulación Leal', () => {
 
     expect(result.current.alertModal).toBeNull()
     expect(onSaleComplete).not.toHaveBeenCalled()
+  })
+
+  describe('Validación estricta de crédito en checkout', () => {
+    const mockCreditoCustomer = {
+      code: 'CL001',
+      name: 'Empresa Credito S.A.',
+      rtf: '08011999888888',
+      billingType: 0,
+      creditLimit: 1000,
+      balance: 800,
+      blockOnOverdue: true,
+      hasOverdueInvoices: false
+    }
+
+    const creditoMethod = {
+      code: 'CREDITO',
+      description: 'Crédito',
+      categoria: 'CREDITO',
+      moneda: 'HNL',
+      generaCambio: false,
+      facturaContado: false,
+      facturaCredito: true,
+      salidaCombustible: false,
+      fidelizacion: false,
+      requiereReferencia: false,
+      imagen: null,
+      activo: true
+    }
+
+    it('rechaza la factura al crédito si el monto excede el disponible', async () => {
+      const setMessage = vi.fn()
+      const createInvoiceMock = vi.spyOn(api, 'createInvoice')
+
+      const { result } = renderHook(() =>
+        useCheckout({
+          store: mockSession.storeConfig,
+          session: mockSession,
+          effectiveCart: mockCart,
+          totals: { total: 300, discount: 0, tax: 45, subtotal: 255 },
+          hasShift: true,
+          customer: mockCreditoCustomer as any,
+          onCustomerChange: vi.fn(),
+          onSaleComplete: vi.fn(),
+          setMessage,
+          printTicket: vi.fn().mockResolvedValue(undefined)
+        })
+      )
+
+      act(() => {
+        result.current.openCustomerMode('credito')
+        result.current.selectCustomer(mockCreditoCustomer as any)
+        result.current.setOrden('OC-123')
+        result.current.setKmValue('5000')
+        result.current.setChofer('Juan Perez')
+      })
+
+      act(() => {
+        result.current.addPayment(creditoMethod)
+      })
+
+      await act(async () => {
+        await result.current.checkout()
+      })
+
+      expect(setMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Crédito insuficiente')
+      )
+      expect(createInvoiceMock).not.toHaveBeenCalled()
+    })
+
+    it('rechaza la factura al crédito si el cliente está en mora', async () => {
+      const setMessage = vi.fn()
+      const createInvoiceMock = vi.spyOn(api, 'createInvoice')
+
+      const clienteEnMora = { ...mockCreditoCustomer, creditLimit: 5000, hasOverdueInvoices: true }
+
+      const { result } = renderHook(() =>
+        useCheckout({
+          store: mockSession.storeConfig,
+          session: mockSession,
+          effectiveCart: mockCart,
+          totals: { total: 300, discount: 0, tax: 45, subtotal: 255 },
+          hasShift: true,
+          customer: clienteEnMora as any,
+          onCustomerChange: vi.fn(),
+          onSaleComplete: vi.fn(),
+          setMessage,
+          printTicket: vi.fn().mockResolvedValue(undefined)
+        })
+      )
+
+      act(() => {
+        result.current.openCustomerMode('credito')
+        result.current.selectCustomer(clienteEnMora as any)
+        result.current.setOrden('OC-123')
+        result.current.setKmValue('5000')
+        result.current.setChofer('Juan Perez')
+      })
+
+      act(() => {
+        result.current.addPayment(creditoMethod)
+      })
+
+      await act(async () => {
+        await result.current.checkout()
+      })
+
+      expect(setMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Cliente en mora')
+      )
+      expect(createInvoiceMock).not.toHaveBeenCalled()
+    })
+
+    it('impide agregar pagos no crédito cuando se factura al crédito', async () => {
+      const setMessage = vi.fn()
+
+      const { result } = renderHook(() =>
+        useCheckout({
+          store: mockSession.storeConfig,
+          session: mockSession,
+          effectiveCart: mockCart,
+          totals: { total: 300, discount: 0, tax: 45, subtotal: 255 },
+          hasShift: true,
+          customer: mockCreditoCustomer as any,
+          onCustomerChange: vi.fn(),
+          onSaleComplete: vi.fn(),
+          setMessage,
+          printTicket: vi.fn().mockResolvedValue(undefined)
+        })
+      )
+
+      act(() => {
+        result.current.openCustomerMode('credito')
+        result.current.selectCustomer(mockCreditoCustomer as any)
+      })
+
+      act(() => {
+        result.current.addPayment({
+          code: '1002',
+          description: 'EFECTIVO',
+          categoria: 'EFECTIVO',
+          moneda: 'HNL',
+          generaCambio: true,
+          facturaContado: true,
+          facturaCredito: false,
+          salidaCombustible: false,
+          fidelizacion: false,
+          requiereReferencia: false,
+          imagen: null,
+          activo: true
+        })
+      })
+
+      expect(setMessage).toHaveBeenCalledWith(
+        'En ventas al crédito solo se permite la forma de pago Crédito.'
+      )
+      expect(result.current.payments).toHaveLength(0)
+    })
   })
 })

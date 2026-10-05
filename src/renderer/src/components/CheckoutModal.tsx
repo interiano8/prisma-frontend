@@ -27,6 +27,7 @@ interface Props {
   comment: string
   busy: boolean
   moneda?: string
+  validarSaldoCredito?: boolean
   backendUrl: string
   onClose: () => void
   onAddPayment: (m: PaymentMethod) => void
@@ -179,6 +180,12 @@ export default function CheckoutModal(props: Props) {
                     )}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {props.billingType === 'credito' && props.validarSaldoCredito === false && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500 font-medium">
+                ⚠️ Consulta de saldo deshabilitada en esta estación. Venta emitida al crédito sin validación de saldo.
               </div>
             )}
 

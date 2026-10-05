@@ -37,6 +37,7 @@ address: string
   mostrarTeclado?: boolean
   declararMontosIniciales?: boolean
   carpetaMultimedia?: string
+  validarSaldoCredito?: boolean
   caras?: number[]
   [key: string]: any
 }

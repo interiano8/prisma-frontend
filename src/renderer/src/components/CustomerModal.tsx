@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Customer } from '../api/types'
 import { formatRtn } from '../format'
-import { UserRound, Plus, X, Wallet } from 'lucide-react'
+import { UserRound, Plus, X, Wallet, Ban } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -72,13 +72,19 @@ export default function CustomerModal(props: Props) {
                   return (
                     <div
                       key={c.code}
-                      className={`flex flex-col rounded-lg border border-border bg-card transition-colors ${
-                        c.rtf ? 'hover:border-accent/40' : 'opacity-60'
+                      className={`flex flex-col rounded-lg border bg-card transition-colors ${
+                        c.blocked
+                          ? 'border-danger/30 bg-danger/5 opacity-70 cursor-not-allowed'
+                          : c.rtf
+                            ? 'border-border hover:border-accent/40 cursor-pointer'
+                            : 'border-border opacity-60'
                       }`}
                     >
                       <div
-                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm cursor-pointer"
-                        onClick={() => c.rtf && props.onSelect(c)}
+                        className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm ${
+                          c.blocked ? 'cursor-not-allowed' : c.rtf ? 'cursor-pointer' : ''
+                        }`}
+                        onClick={() => props.onSelect(c)}
                       >
                         <span className="flex flex-1 flex-col leading-tight">
                           <span className="truncate font-semibold">{c.name}</span>
@@ -88,6 +94,12 @@ export default function CustomerModal(props: Props) {
                         </span>
 
                         <span className="flex shrink-0 items-center gap-2">
+                          {c.blocked && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 border border-danger/30 px-2 py-0.5 text-[11px] font-bold text-danger">
+                              <Ban size={12} /> Bloqueado
+                            </span>
+                          )}
+
                           {!c.rtf && (
                             <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
                               Sin RTN

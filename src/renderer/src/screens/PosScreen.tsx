@@ -407,6 +407,7 @@ export default function PosScreen() {
         comment={comment}
         busy={busy}
         moneda={store.moneda}
+        validarSaldoCredito={store?.validarSaldoCredito}
         backendUrl={backendUrl}
         onClose={() => setCheckoutOpen(false)}
         onAddPayment={addPayment}

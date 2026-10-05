@@ -19,7 +19,8 @@ import {
   Zap,
   IdCard,
   CreditCard,
-  Star
+  Star,
+  Ban
 } from 'lucide-react'
 
 interface Props {
@@ -66,12 +67,14 @@ export default function CartPanel(props: Props) {
     maximumFractionDigits: 6,
   })
 
-  const checkoutDisabled = !hasShift || effectiveCart.length === 0 || busy || !customer || !customer.rtf
+  const checkoutDisabled = !hasShift || effectiveCart.length === 0 || busy || !customer || !customer.rtf || !!customer.blocked
   const hint = !hasShift
     ? 'Abra un turno para cobrar'
     : !customer || !customer.rtf
       ? 'Seleccione un cliente con RTN para facturar'
-      : ''
+      : customer.blocked
+        ? '⚠️ El cliente seleccionado está BLOQUEADO en Casa Matriz'
+        : ''
 
   return (
     <div className="card-surface flex min-h-0 flex-col gap-3 p-4">
@@ -115,12 +118,17 @@ export default function CartPanel(props: Props) {
         {customer ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
-                <UserRound size={17} />
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${customer.blocked ? 'bg-danger/15 text-danger' : 'bg-accent/10 text-accent'}`}>
+                {customer.blocked ? <Ban size={17} /> : <UserRound size={17} />}
               </div>
               <div className="flex min-w-0 flex-col leading-tight">
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 flex-wrap">
                   <span className="truncate text-sm font-semibold">{customer.name}</span>
+                  {customer.blocked && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 border border-danger/30 px-2 py-0.5 text-[11px] font-bold text-danger">
+                      <Ban size={12} /> BLOQUEADO
+                    </span>
+                  )}
                   {isFidelizacion && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                       {fidelizacionLabel}
