@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Customer } from '../api/types'
 import { formatRtn } from '../format'
-import { UserRound, Plus, X, Wallet, Ban } from 'lucide-react'
+import { UserRound, Plus, X, Wallet, Ban, Search, CheckCircle2, XCircle } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -16,8 +16,68 @@ interface Props {
 }
 
 export default function CustomerModal(props: Props) {
-  const [selectedSaldoCode, setSelectedSaldoCode] = useState<string | null>(null)
-  const [customAmountInput, setCustomAmountInput] = useState<string>('')
+  const [creditModalCustomer, setCreditModalCustomer] = useState<Customer | null>(null)
+  const [creditAmountInput, setCreditAmountInput] = useState<string>('')
+  const [creditEvaluated, setCreditEvaluated] = useState<boolean>(false)
+  const [creditEvalResult, setCreditEvalResult] = useState<{
+    approved: boolean
+    message: string
+    evaluatedAmount: number
+  } | null>(null)
+
+  function handleEvaluateCredit() {
+    if (!creditModalCustomer) return
+    const amount = Number(creditAmountInput)
+    if (isNaN(amount) || amount <= 0) return
+
+    if (creditModalCustomer.blocked) {
+      setCreditEvalResult({
+        approved: false,
+        evaluatedAmount: amount,
+        message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} está bloqueado administrativamente.`
+      })
+      setCreditEvaluated(true)
+      return
+    }
+
+    if (creditModalCustomer.blockOnOverdue && creditModalCustomer.hasOverdueInvoices) {
+      setCreditEvalResult({
+        approved: false,
+        evaluatedAmount: amount,
+        message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} presenta facturas vencidas en mora.`
+      })
+      setCreditEvaluated(true)
+      return
+    }
+
+    const limit = Number(creditModalCustomer.creditLimit || 0)
+    const balance = Number(creditModalCustomer.balance || 0)
+    const disponible = Math.max(0, Math.round((limit - balance) * 100) / 100)
+    const fmtL = (n: number) => `L. ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    if (limit <= 0) {
+      setCreditEvalResult({
+        approved: false,
+        evaluatedAmount: amount,
+        message: `El cliente no tiene un límite de crédito configurado (Límite: ${fmtL(0)}).`
+      })
+    } else if (amount > disponible) {
+      const exceso = amount - disponible
+      setCreditEvalResult({
+        approved: false,
+        evaluatedAmount: amount,
+        message: `El monto solicitado (${fmtL(amount)}) excede el saldo disponible (${fmtL(disponible)} / Límite: ${fmtL(limit)} / Saldo Acumulado: ${fmtL(balance)}). Excede por ${fmtL(exceso)}.`
+      })
+    } else {
+      const restante = disponible - amount
+      setCreditEvalResult({
+        approved: true,
+        evaluatedAmount: amount,
+        message: `El cliente dispone de crédito suficiente para facturar ${fmtL(amount)} (Disponible actual: ${fmtL(disponible)} / Restante tras venta: ${fmtL(restante)}).`
+      })
+    }
+    setCreditEvaluated(true)
+  }
 
   if (!props.open) return null
   return (
@@ -65,10 +125,6 @@ export default function CustomerModal(props: Props) {
               )}
               <div className="flex flex-col gap-1.5">
                 {props.results.map((c) => {
-                  const isSaldoOpen = selectedSaldoCode === c.code
-                  const limit = Number(c.creditLimit || 0)
-                  const bal = Number(c.balance || 0)
-                  const disp = Math.max(0, limit - bal)
                   return (
                     <div
                       key={c.code}
@@ -109,19 +165,18 @@ export default function CustomerModal(props: Props) {
                           {c.billingType === 0 && (
                             <button
                               type="button"
-                              className={`btn-press inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${
-                                isSaldoOpen
-                                  ? 'border-accent bg-accent/20 text-accent'
-                                  : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted'
-                              }`}
+                              className="btn-press inline-flex items-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-2.5 py-1 text-xs font-bold text-accent hover:bg-accent/20"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setSelectedSaldoCode(isSaldoOpen ? null : c.code)
+                                setCreditModalCustomer(c)
+                                setCreditAmountInput('')
+                                setCreditEvaluated(false)
+                                setCreditEvalResult(null)
                               }}
-                              title="Consultar saldo de crédito"
+                              title="Consultar disponibilidad de crédito"
                             >
                               <Wallet size={13} />
-                              {isSaldoOpen ? 'Ocultar Saldo' : 'Consultar Saldo'}
+                              Consultar Crédito
                             </button>
                           )}
 
@@ -134,68 +189,6 @@ export default function CustomerModal(props: Props) {
                           </span>
                         </span>
                       </div>
-
-                      {/* PANEL EXPANDIBLE DE SALDO DE CRÉDITO */}
-                      {c.billingType === 0 && isSaldoOpen && (
-                        <div className="border-t border-border/60 bg-muted/20 px-3 py-2.5 text-xs animate-in fade-in-0 flex flex-col gap-2">
-                          <div className="grid grid-cols-3 gap-2 font-mono">
-                            <div>
-                              <span className="text-[10px] text-muted block font-semibold uppercase">Límite Autorizado</span>
-                              <span className="font-bold text-foreground">L {limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-muted block font-semibold uppercase">Saldo Acumulado</span>
-                              <span className="font-bold text-muted-foreground">L {bal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-muted block font-semibold uppercase">Disponible</span>
-                              <span className={`font-bold ${disp <= 0 ? 'text-danger' : 'text-accent'}`}>
-                                L {disp.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* EVALUADOR DE MONTO INVOLUCRADO / PERSONALIZADO */}
-                          <div className="mt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-border/40 pt-2 text-xs">
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <span className="font-semibold text-muted text-[11px]">Validar monto (L):</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={customAmountInput}
-                                onChange={(e) => setCustomAmountInput(e.target.value)}
-                                className="input-base h-7 w-28 font-mono text-xs px-2"
-                              />
-                            </div>
-
-                            {customAmountInput.trim() !== '' && (
-                              <div className="flex items-center gap-1.5 font-mono text-xs">
-                                {c.blockOnOverdue && c.hasOverdueInvoices ? (
-                                  <span className="rounded bg-danger/15 px-2 py-0.5 font-bold text-danger border border-danger/30">
-                                    ❌ Rechazado: Cliente en mora
-                                  </span>
-                                ) : Number(customAmountInput) <= disp ? (
-                                  <span className="rounded bg-success/15 px-2 py-0.5 font-bold text-success border border-success/30">
-                                    ✅ Aprobado (L {Number(customAmountInput).toLocaleString('en-US', { minimumFractionDigits: 2 })} ≤ Disp L {disp.toLocaleString('en-US', { minimumFractionDigits: 2 })})
-                                  </span>
-                                ) : (
-                                  <span className="rounded bg-danger/15 px-2 py-0.5 font-bold text-danger border border-danger/30">
-                                    ❌ Rechazado: Excede por L {(Number(customAmountInput) - disp).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {c.blockOnOverdue && c.hasOverdueInvoices && (
-                            <div className="mt-1 text-[11px] font-bold text-danger flex items-center gap-1">
-                              ⚠️ Cliente posee facturas en mora / vencidas
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )
                 })}
@@ -204,6 +197,127 @@ export default function CustomerModal(props: Props) {
           )}
         </div>
       </div>
+
+      {/* SUB-MODAL FOCALIZADO DE CONSULTA DE CRÉDITO */}
+      {creditModalCustomer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-md animate-in fade-in-0">
+          <div className="card-surface flex w-[90vw] max-w-lg flex-col p-6 animate-in zoom-in-95 shadow-2xl border border-border">
+            <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-accent" />
+                <h3 className="text-lg font-bold">Validar Crédito de Cliente</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-press text-muted hover:text-primary"
+                onClick={() => setCreditModalCustomer(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* CARD DESTACADA DEL CLIENTE EN CONSULTA */}
+            <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4 shadow-inner">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-accent mb-1">
+                Cliente en Consulta
+              </div>
+              <div className="text-base font-black text-foreground">
+                {creditModalCustomer.name}
+              </div>
+              <div className="font-mono text-xs text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                <span>Cuenta: <strong className="text-foreground font-bold">{creditModalCustomer.code}</strong></span>
+                <span>RTN: <strong className="text-foreground font-bold">{creditModalCustomer.rtf ? formatRtn(creditModalCustomer.rtf) : '—'}</strong></span>
+              </div>
+            </div>
+
+            {/* ENTRADA DE MONTO Y BOTÓN EXPLÍCITO */}
+            <div className="flex flex-col gap-2.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">
+                Ingrese el monto a facturar (Lempiras)
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-muted">L</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={creditAmountInput}
+                    onChange={(e) => {
+                      setCreditAmountInput(e.target.value)
+                      setCreditEvaluated(false)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleEvaluateCredit()
+                    }}
+                    className="input-base w-full pl-8 font-mono text-base font-bold"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+                  disabled={!creditAmountInput.trim() || Number(creditAmountInput) <= 0}
+                  onClick={handleEvaluateCredit}
+                >
+                  <Search size={16} /> Consultar Crédito
+                </button>
+              </div>
+            </div>
+
+            {/* BANNER RESULTADO BINARIO */}
+            {creditEvaluated && creditEvalResult && (
+              <div className={`mt-5 rounded-xl p-4 border text-sm font-medium animate-in fade-in-0 ${
+                creditEvalResult.approved
+                  ? 'border-success/50 bg-success/15 text-success'
+                  : 'border-danger/50 bg-danger/15 text-danger'
+              }`}>
+                <div className="flex items-center gap-2 font-black text-base">
+                  {creditEvalResult.approved ? (
+                    <>
+                      <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
+                      <span>✅ SÍ PUEDE FACTURAR ESTE MONTO</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-6 w-6 text-danger shrink-0" />
+                      <span>❌ NO PUEDE FACTURAR ESTE MONTO</span>
+                    </>
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs opacity-90 leading-relaxed font-mono">
+                  {creditEvalResult.message}
+                </p>
+              </div>
+            )}
+
+            {/* BOTONES DE ACCIÓN */}
+            <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
+              <button
+                type="button"
+                className="btn-press rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground"
+                onClick={() => setCreditModalCustomer(null)}
+              >
+                Cerrar
+              </button>
+              {creditEvaluated && creditEvalResult?.approved && (
+                <button
+                  type="button"
+                  className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-success px-4 py-2 text-sm font-bold text-success-foreground hover:bg-success/90 shadow-md"
+                  onClick={() => {
+                    const cust = creditModalCustomer
+                    setCreditModalCustomer(null)
+                    props.onSelect(cust)
+                  }}
+                >
+                  <CheckCircle2 size={16} /> Facturar a este Cliente
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
