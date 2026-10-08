@@ -85,9 +85,10 @@ export function useCheckout(opts: UseCheckoutOptions) {
 
   const { paid, change } = computePaidChange(payments, opts.totals.total)
 
-  async function searchCustomers(q: string) {
+  async function searchCustomers(q: string, creditOnlyOverride?: boolean) {
     setCustomerQuery(q)
-    const res = await api.searchCustomers(q, customerMode === 'credito')
+    const isCred = creditOnlyOverride !== undefined ? creditOnlyOverride : (customerMode === 'credito')
+    const res = await api.searchCustomers(q, isCred)
     // query vacía → "Recientes" (el backend ordena por fechaActualizacion DESC)
     setCustomerResults(q ? (res ?? []) : (res ?? []).slice(0, 10))
   }
@@ -98,7 +99,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
     setCustomerQuery('')
     setCustomerResults([])
     setCustomerModalOpen(true)
-    void searchCustomers('')
+    void searchCustomers('', mode === 'credito')
   }
 
   function selectCustomer(c: Customer) {
