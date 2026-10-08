@@ -321,6 +321,7 @@ export default function PosScreen() {
         query={customerQuery}
         results={customerResults}
         canCreate={customerMode !== 'credito'}
+        storeId={store?.storeId}
         onQueryChange={searchCustomers}
         onClose={closeCustomerModal}
         onCreate={() => setCreateCustomerOpen(true)}

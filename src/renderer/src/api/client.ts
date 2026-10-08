@@ -139,6 +139,24 @@ export const api = {
   customerByCode: (code: string) =>
     request<Customer | null>(`/api/customers/by-code/${encodeURIComponent(code)}`),
 
+  checkCustomerCredit: (code: string, amount?: number, storeId?: string) => {
+    const params = new URLSearchParams()
+    if (amount != null && amount > 0) params.set('amount', amount.toString())
+    if (storeId) params.set('storeId', storeId)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return request<{
+      customerNo: string
+      customerName: string
+      creditLimit: number
+      balance: number
+      disponible: number
+      isAllowed: boolean
+      reason?: string
+      source: 'ONLINE' | 'OFFLINE_FALLBACK'
+      evaluatedAmount: number
+    }>(`/api/customers/${encodeURIComponent(code)}/credit-check${qs}`)
+  },
+
   createCustomer: (body: { rtn: string; name: string; code?: string; storeId?: string; allowDuplicateRtn?: boolean }) =>
     request<{ success: boolean; code: string; name: string; rtf: string; exists?: boolean; existingCustomer?: { code: string; name: string } | null }>('/api/customers/create', {
       method: 'POST',

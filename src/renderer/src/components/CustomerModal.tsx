@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Customer } from '../api/types'
+import { api } from '../api/client'
 import { formatRtn } from '../format'
-import { UserRound, Plus, X, Wallet, Ban, Search, CheckCircle2, XCircle } from 'lucide-react'
+import { UserRound, Plus, X, Wallet, Ban, Search, CheckCircle2, XCircle, Globe, WifiOff } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -9,6 +10,7 @@ interface Props {
   query: string
   results: Customer[]
   canCreate: boolean
+  storeId?: string
   onQueryChange: (q: string) => void
   onClose: () => void
   onCreate: () => void
@@ -19,64 +21,90 @@ export default function CustomerModal(props: Props) {
   const [creditModalCustomer, setCreditModalCustomer] = useState<Customer | null>(null)
   const [creditAmountInput, setCreditAmountInput] = useState<string>('')
   const [creditEvaluated, setCreditEvaluated] = useState<boolean>(false)
+  const [evaluating, setEvaluating] = useState<boolean>(false)
   const [creditEvalResult, setCreditEvalResult] = useState<{
     approved: boolean
     message: string
     evaluatedAmount: number
+    source?: 'ONLINE' | 'OFFLINE_FALLBACK'
+    disponible?: number
   } | null>(null)
 
-  function handleEvaluateCredit() {
+  async function handleEvaluateCredit() {
     if (!creditModalCustomer) return
     const amount = Number(creditAmountInput)
     if (isNaN(amount) || amount <= 0) return
 
-    if (creditModalCustomer.blocked) {
+    setEvaluating(true)
+    const fmtL = (n: number) =>
+      `L. ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    try {
+      const res = await api.checkCustomerCredit(
+        creditModalCustomer.code,
+        amount,
+        props.storeId
+      )
       setCreditEvalResult({
-        approved: false,
+        approved: res.isAllowed,
         evaluatedAmount: amount,
-        message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} está bloqueado administrativamente.`
+        source: res.source,
+        disponible: res.disponible,
+        message: res.isAllowed
+          ? `El cliente dispone de crédito suficiente para facturar ${fmtL(amount)} (Disponible actual: ${fmtL(res.disponible)} / Límite: ${fmtL(res.creditLimit)} / Saldo: ${fmtL(res.balance)}).`
+          : (res.reason ||
+            `No puede facturar este monto (Disponible: ${fmtL(res.disponible)} / Límite: ${fmtL(res.creditLimit)} / Saldo: ${fmtL(res.balance)}).`)
       })
+    } catch {
+      // Fallback local ante imposibilidad de conectar con backend
+      if (creditModalCustomer.blocked) {
+        setCreditEvalResult({
+          approved: false,
+          evaluatedAmount: amount,
+          source: 'OFFLINE_FALLBACK',
+          message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} está bloqueado administrativamente.`
+        })
+      } else if (creditModalCustomer.blockOnOverdue && creditModalCustomer.hasOverdueInvoices) {
+        setCreditEvalResult({
+          approved: false,
+          evaluatedAmount: amount,
+          source: 'OFFLINE_FALLBACK',
+          message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} presenta facturas vencidas en mora.`
+        })
+      } else {
+        const limit = Number(creditModalCustomer.creditLimit || 0)
+        const balance = Number(creditModalCustomer.balance || 0)
+        const disponible = Math.max(0, Math.round((limit - balance) * 100) / 100)
+
+        if (limit <= 0) {
+          setCreditEvalResult({
+            approved: false,
+            evaluatedAmount: amount,
+            source: 'OFFLINE_FALLBACK',
+            message: `El cliente no tiene un límite de crédito configurado (Límite: ${fmtL(0)}).`
+          })
+        } else if (amount > disponible) {
+          const exceso = amount - disponible
+          setCreditEvalResult({
+            approved: false,
+            evaluatedAmount: amount,
+            source: 'OFFLINE_FALLBACK',
+            message: `El monto solicitado (${fmtL(amount)}) excede el saldo disponible (${fmtL(disponible)} / Límite: ${fmtL(limit)} / Saldo: ${fmtL(balance)}). Excede por ${fmtL(exceso)}.`
+          })
+        } else {
+          const restante = disponible - amount
+          setCreditEvalResult({
+            approved: true,
+            evaluatedAmount: amount,
+            source: 'OFFLINE_FALLBACK',
+            message: `El cliente dispone de crédito suficiente para facturar ${fmtL(amount)} (Disponible actual: ${fmtL(disponible)} / Restante tras venta: ${fmtL(restante)}).`
+          })
+        }
+      }
+    } finally {
+      setEvaluating(false)
       setCreditEvaluated(true)
-      return
     }
-
-    if (creditModalCustomer.blockOnOverdue && creditModalCustomer.hasOverdueInvoices) {
-      setCreditEvalResult({
-        approved: false,
-        evaluatedAmount: amount,
-        message: `El cliente ${creditModalCustomer.name || creditModalCustomer.code} presenta facturas vencidas en mora.`
-      })
-      setCreditEvaluated(true)
-      return
-    }
-
-    const limit = Number(creditModalCustomer.creditLimit || 0)
-    const balance = Number(creditModalCustomer.balance || 0)
-    const disponible = Math.max(0, Math.round((limit - balance) * 100) / 100)
-    const fmtL = (n: number) => `L. ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-    if (limit <= 0) {
-      setCreditEvalResult({
-        approved: false,
-        evaluatedAmount: amount,
-        message: `El cliente no tiene un límite de crédito configurado (Límite: ${fmtL(0)}).`
-      })
-    } else if (amount > disponible) {
-      const exceso = amount - disponible
-      setCreditEvalResult({
-        approved: false,
-        evaluatedAmount: amount,
-        message: `El monto solicitado (${fmtL(amount)}) excede el saldo disponible (${fmtL(disponible)} / Límite: ${fmtL(limit)} / Saldo Acumulado: ${fmtL(balance)}). Excede por ${fmtL(exceso)}.`
-      })
-    } else {
-      const restante = disponible - amount
-      setCreditEvalResult({
-        approved: true,
-        evaluatedAmount: amount,
-        message: `El cliente dispone de crédito suficiente para facturar ${fmtL(amount)} (Disponible actual: ${fmtL(disponible)} / Restante tras venta: ${fmtL(restante)}).`
-      })
-    }
-    setCreditEvaluated(true)
   }
 
   if (!props.open) return null
@@ -258,10 +286,10 @@ export default function CustomerModal(props: Props) {
                 <button
                   type="button"
                   className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
-                  disabled={!creditAmountInput.trim() || Number(creditAmountInput) <= 0}
+                  disabled={evaluating || !creditAmountInput.trim() || Number(creditAmountInput) <= 0}
                   onClick={handleEvaluateCredit}
                 >
-                  <Search size={16} /> Consultar Crédito
+                  <Search size={16} /> {evaluating ? 'Consultando…' : 'Consultar Crédito'}
                 </button>
               </div>
             </div>
@@ -273,17 +301,28 @@ export default function CustomerModal(props: Props) {
                   ? 'border-success/50 bg-success/15 text-success'
                   : 'border-danger/50 bg-danger/15 text-danger'
               }`}>
-                <div className="flex items-center gap-2 font-black text-base">
-                  {creditEvalResult.approved ? (
-                    <>
-                      <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
-                      <span>✅ SÍ PUEDE FACTURAR ESTE MONTO</span>
-                    </>
+                <div className="flex flex-wrap items-center justify-between gap-2 font-black text-base">
+                  <div className="flex items-center gap-2">
+                    {creditEvalResult.approved ? (
+                      <>
+                        <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
+                        <span>✅ SÍ PUEDE FACTURAR ESTE MONTO</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-6 w-6 text-danger shrink-0" />
+                        <span>❌ NO PUEDE FACTURAR ESTE MONTO</span>
+                      </>
+                    )}
+                  </div>
+                  {creditEvalResult.source === 'ONLINE' ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[11px] font-bold text-accent">
+                      <Globe size={12} /> Validado en línea con Matriz
+                    </span>
                   ) : (
-                    <>
-                      <XCircle className="h-6 w-6 text-danger shrink-0" />
-                      <span>❌ NO PUEDE FACTURAR ESTE MONTO</span>
-                    </>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 border border-warning/40 px-2 py-0.5 text-[11px] font-bold text-warning">
+                      <WifiOff size={12} /> Validado localmente (Offline)
+                    </span>
                   )}
                 </div>
                 <p className="mt-1.5 text-xs opacity-90 leading-relaxed font-mono">

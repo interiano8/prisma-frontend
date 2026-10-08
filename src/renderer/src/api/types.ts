@@ -197,6 +197,7 @@ export interface CreateInvoicePayload {
   discount: number
   isTicket?: boolean
   isCredit?: boolean
+  creditValidationSource?: string
   comment?: string
   km?: string
   orden?: string

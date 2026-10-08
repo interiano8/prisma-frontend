@@ -356,20 +356,36 @@ export function useCheckout(opts: UseCheckoutOptions) {
       }
 
       // Validar crédito disponible y morosidad si la estación tiene activada la validación de saldo
+      let creditValidationSource: 'ONLINE' | 'OFFLINE_FALLBACK' = 'OFFLINE_FALLBACK'
       const shouldValidateCredit = opts.store?.validarSaldoCredito !== false
       if (shouldValidateCredit) {
-        const check = calcularCreditoDisponible({
-          creditLimit: opts.customer.creditLimit || 0,
-          saldoCentral: opts.customer.balance || 0,
-          facturasPendientesLocales: 0,
-          totalVentaActual: opts.totals.total,
-          hasOverdueInvoices: opts.customer.hasOverdueInvoices,
-          blockOnOverdue: opts.customer.blockOnOverdue
-        })
+        try {
+          const check = await api.checkCustomerCredit(
+            opts.customer.code,
+            opts.totals.total,
+            opts.store?.storeId
+          )
+          creditValidationSource = check.source
+          if (!check.isAllowed) {
+            opts.setMessage(check.reason || 'Crédito insuficiente o cliente en mora.')
+            return
+          }
+        } catch {
+          // Fallback a cálculo local ante error de red o timeout
+          const check = calcularCreditoDisponible({
+            creditLimit: opts.customer.creditLimit || 0,
+            saldoCentral: opts.customer.balance || 0,
+            facturasPendientesLocales: 0,
+            totalVentaActual: opts.totals.total,
+            hasOverdueInvoices: opts.customer.hasOverdueInvoices,
+            blockOnOverdue: opts.customer.blockOnOverdue
+          })
 
-        if (!check.isAllowed) {
-          opts.setMessage(check.reason || 'Crédito insuficiente o cliente en mora.')
-          return
+          if (!check.isAllowed) {
+            opts.setMessage(check.reason || 'Crédito insuficiente o cliente en mora.')
+            return
+          }
+          creditValidationSource = 'OFFLINE_FALLBACK'
         }
       } else {
         opts.setMessage('⚠️ Consulta de saldo deshabilitada en esta estación. Venta emitida al crédito sin validación de saldo.')
@@ -413,6 +429,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
         tax: Number(opts.totals.tax.toFixed(2)),
         discount: Number(opts.totals.discount.toFixed(2)),
         isCredit: billingType === 'credito',
+        creditValidationSource: billingType === 'credito' ? creditValidationSource : undefined,
         isTicket: esTicket,
         orden: orden.trim(),
         km: kmValue.trim() ? `${kmValue.trim()} ${kmUnit}` : '',
