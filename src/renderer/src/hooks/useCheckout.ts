@@ -491,7 +491,23 @@ export function useCheckout(opts: UseCheckoutOptions) {
       try {
         await opts.printTicket(ticketInput)
       } catch (printErr: any) {
-        console.warn('Error imprimiendo:', printErr.message)
+        console.warn('Error imprimiendo:', printErr?.message)
+        setAlertModal({
+          title: 'Venta Emitida · Error de Impresora',
+          message: `La factura ${result.invoiceNo} se guardó exitosamente, pero no se pudo imprimir el ticket (${printErr?.message || 'verifique papel o conexión'}). ¿Desea reintentar la impresión?`,
+          confirmText: 'Reintentar impresión',
+          cancelText: 'Aceptar',
+          onConfirm: async () => {
+            closeAlertModal()
+            try {
+              await opts.printTicket(ticketInput)
+              opts.setMessage('Ticket impreso exitosamente.')
+            } catch (retryErr: any) {
+              opts.setMessage(`Reintento falló: ${retryErr?.message || 'Error de impresora'}`)
+            }
+          },
+          onCancel: () => closeAlertModal()
+        })
       }
 
       const seriesMsg =

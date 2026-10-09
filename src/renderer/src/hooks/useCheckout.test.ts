@@ -249,6 +249,72 @@ describe('useCheckout - Manejo de error en acumulación Leal', () => {
     expect(onSaleComplete).not.toHaveBeenCalled()
   })
 
+  it('muestra modal de recuperación al fallar la impresora y permite reintentar', async () => {
+    vi.spyOn(api, 'createInvoice').mockResolvedValue({
+      invoiceNo: '001-001-01-00000105',
+      cai: 'TEST-CAI',
+      startingNo: '001-001-01-00000001',
+      endingNo: '001-001-01-00000200',
+      fechaVence: '2026-12-31'
+    } as any)
+
+    const setMessage = vi.fn()
+    const onSaleComplete = vi.fn()
+    const printTicket = vi.fn()
+      .mockRejectedValueOnce(new Error('Impresora sin papel'))
+      .mockResolvedValueOnce(undefined)
+
+    const { result } = renderHook(() =>
+      useCheckout({
+        store: mockSession.storeConfig,
+        session: mockSession,
+        effectiveCart: mockCart,
+        totals: { total: 300, discount: 0, tax: 45, subtotal: 255 },
+        hasShift: true,
+        customer: { code: 'CF', name: 'Consumidor Final', rtf: '08011999123456' } as any,
+        onCustomerChange: vi.fn(),
+        onSaleComplete,
+        setMessage,
+        printTicket
+      })
+    )
+
+    act(() => {
+      result.current.addPayment({
+        code: '1002',
+        description: 'EFECTIVO',
+        categoria: 'EFECTIVO',
+        moneda: 'HNL',
+        generaCambio: true,
+        facturaContado: true,
+        facturaCredito: false,
+        salidaCombustible: false,
+        fidelizacion: false,
+        requiereReferencia: false,
+        imagen: null,
+        activo: true
+      })
+    })
+
+    await act(async () => {
+      await result.current.checkout()
+    })
+
+    // Modal de error de impresión debe estar presente
+    expect(result.current.alertModal).not.toBeNull()
+    expect(result.current.alertModal?.title).toContain('Error de Impresora')
+    expect(result.current.alertModal?.message).toContain('Impresora sin papel')
+
+    // Confirmar reintento
+    await act(async () => {
+      await result.current.alertModal?.onConfirm?.()
+    })
+
+    expect(printTicket).toHaveBeenCalledTimes(2)
+    expect(setMessage).toHaveBeenCalledWith('Ticket impreso exitosamente.')
+    expect(onSaleComplete).toHaveBeenCalledWith('001-001-01-00000105', 0)
+  })
+
   describe('Validación estricta de crédito en checkout', () => {
     const mockCreditoCustomer = {
       code: 'CL001',

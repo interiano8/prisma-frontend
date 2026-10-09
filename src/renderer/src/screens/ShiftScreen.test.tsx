@@ -142,4 +142,22 @@ describe('ShiftScreen Pre-cierre y Arqueo Interactivo', () => {
       })
     )
   })
+
+  it('muestra el indicador de crédito contingencia offline cuando existen ventas offline en el turno', async () => {
+    vi.spyOn(api, 'salesReport').mockResolvedValueOnce({
+      ...mockReport,
+      totales: {
+        ...mockReport.totales,
+        totalCreditoOffline: 450.50,
+        cantidadCreditoOffline: 3
+      }
+    } as any)
+
+    renderShiftScreen()
+
+    await waitFor(() => {
+      expect(screen.getByText(/Crédito Contingencia \(3\)/)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/450\.50/)).toBeInTheDocument()
+  })
 })

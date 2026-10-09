@@ -561,6 +561,12 @@ export default function ShiftScreen() {
                   <DetailRow label="Productos tienda" value={fmt(t.totalOtrosProductos)} />
                   <DetailRow label="Cobros" value={fmt(t.totalCobros)} />
                   <DetailRow label="Efectivo" value={fmt(t.totalEfectivo)} />
+                  {t.cantidadCreditoOffline > 0 ? (
+                    <div className="flex items-center justify-between rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-500 font-medium">
+                      <span>📴 Crédito Contingencia ({t.cantidadCreditoOffline})</span>
+                      <span className="font-mono font-bold">{fmt(t.totalCreditoOffline)}</span>
+                    </div>
+                  ) : null}
                   <DetailRow label="Descuentos" value={`-${fmt(t.totalDescuentos)}`} />
                   {(t.volumenGalones || t.volumenLitros) ? (
                     <DetailRow label="Volumen" value={fmtVolumen(t.volumenGalones, t.volumenLitros)} />
