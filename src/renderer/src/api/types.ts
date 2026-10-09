@@ -28,6 +28,8 @@ address: string
   nombreBotonFidelizacion?: string
   moneda?: string
   printerConfig?: any
+  businessType?: 'GAS_STATION' | 'RETAIL'
+  isGasStation?: boolean
   mostrarBombas?: boolean
   ocultarBotonOtrasBombas?: boolean
   numTransaccionesBombas?: number

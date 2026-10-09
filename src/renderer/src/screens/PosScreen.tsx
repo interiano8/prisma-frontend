@@ -255,8 +255,11 @@ export default function PosScreen() {
     }
   }
 
+  const isRetailMode = store.businessType === 'RETAIL' || store.isGasStation === false
+  const shouldShowPumps = !isRetailMode && store.mostrarBombas
+
   useEffect(() => {
-    if (!store.mostrarBombas) return
+    if (!shouldShowPumps) return
     let mounted = true
     // Carga única del mapeo bomba→POS/productos (sin timer). El estado en vivo
     // llega por el WebSocket de wayne. Se mergea con los estados WS acumulados
@@ -273,12 +276,12 @@ export default function PosScreen() {
     return () => {
       mounted = false
     }
-  }, [store.mostrarBombas])
+  }, [shouldShowPumps])
 
   const [conexionBombas, setConexionBombas] = useState<PumpSocketStatus>('desconectado')
   const socketStatus = usePumpSocket(
-    store.urlControlador ?? '',
-    store.claveControlador ?? '',
+    shouldShowPumps ? (store.urlControlador ?? '') : '',
+    shouldShowPumps ? (store.claveControlador ?? '') : '',
     (msg) => {
       // Acumular siempre el último estado por bomba (aunque el dispenser aún no exista).
       wsStates.current.set(msg.PumpID, msg)
@@ -364,17 +367,19 @@ export default function PosScreen() {
           <CategoryShortcuts onOpenCategory={setCategoryOpen} />
         )}
 
-        <PumpsBlock
-          pumps={visiblePumps}
-          allPumpIds={dispensers.map((d) => d.pumpId)}
-          myPumpIds={myPumps.map((d) => d.pumpId)}
-          mostrarBombas={store.mostrarBombas}
-          ocultarBotonOtrasBombas={store.ocultarBotonOtrasBombas}
-          showAll={showAllPumps}
-          onToggleAll={() => setShowAllPumps((v) => !v)}
-          onOpenPump={openPumpModal}
-          conexionEstado={conexionBombas}
-        />
+        {shouldShowPumps && (
+          <PumpsBlock
+            pumps={visiblePumps}
+            allPumpIds={dispensers.map((d) => d.pumpId)}
+            myPumpIds={myPumps.map((d) => d.pumpId)}
+            mostrarBombas={shouldShowPumps}
+            ocultarBotonOtrasBombas={store.ocultarBotonOtrasBombas}
+            showAll={showAllPumps}
+            onToggleAll={() => setShowAllPumps((v) => !v)}
+            onOpenPump={openPumpModal}
+            conexionEstado={conexionBombas}
+          />
+        )}
       </div>
 
       <CartPanel

@@ -55,6 +55,7 @@ export default function ShiftScreen() {
   const { can } = usePermissions()
   const store = session!.storeConfig
   const shift = session!.shiftInfo
+  const isRetailMode = store.businessType === 'RETAIL' || store.isGasStation === false
 
   const [initialAmount, setInitialAmount] = useState('0')
   const [actualAmount, setActualAmount] = useState('')
@@ -536,7 +537,7 @@ export default function ShiftScreen() {
               </div>
 
               {/* Bombas */}
-              {report.dispensadores?.length > 0 && (
+              {!isRetailMode && report.dispensadores?.length > 0 && (
                 <div className="card-surface rounded-xl p-4">
                   <div className="mb-3 flex items-center gap-1.5 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-accent">
                     <Layers size={14} /> Bombas con despacho
@@ -557,8 +558,8 @@ export default function ShiftScreen() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <DetailRow label="Total ventas" value={fmt(t.totalVentas)} strong />
-                  <DetailRow label="Combustible" value={fmt(t.totalCombustible)} />
-                  <DetailRow label="Productos tienda" value={fmt(t.totalOtrosProductos)} />
+                  {!isRetailMode && <DetailRow label="Combustible" value={fmt(t.totalCombustible)} />}
+                  <DetailRow label={isRetailMode ? "Venta mercancía" : "Productos tienda"} value={fmt(t.totalOtrosProductos)} />
                   <DetailRow label="Cobros" value={fmt(t.totalCobros)} />
                   <DetailRow label="Efectivo" value={fmt(t.totalEfectivo)} />
                   {t.cantidadCreditoOffline > 0 ? (
@@ -568,7 +569,7 @@ export default function ShiftScreen() {
                     </div>
                   ) : null}
                   <DetailRow label="Descuentos" value={`-${fmt(t.totalDescuentos)}`} />
-                  {(t.volumenGalones || t.volumenLitros) ? (
+                  {!isRetailMode && (t.volumenGalones || t.volumenLitros) ? (
                     <DetailRow label="Volumen" value={fmtVolumen(t.volumenGalones, t.volumenLitros)} />
                   ) : null}
                   {report.tasaCambio ? <DetailRow label="Tasa de cambio" value={String(report.tasaCambio)} /> : null}
@@ -576,7 +577,7 @@ export default function ShiftScreen() {
               </div>
 
               {/* Combustible con volumen */}
-              {report.combustibles?.length > 0 && (
+              {!isRetailMode && report.combustibles?.length > 0 && (
                 <div className="card-surface rounded-xl p-4">
                   <div className="mb-3 flex items-center gap-1.5 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-accent">
                     <Fuel size={14} /> Combustible
