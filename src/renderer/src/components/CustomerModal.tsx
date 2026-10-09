@@ -172,8 +172,24 @@ export default function CustomerModal(props: Props) {
                       >
                         <span className="flex flex-1 flex-col leading-tight">
                           <span className="truncate font-semibold">{c.name}</span>
-                          <span className="font-mono text-xs text-muted">
-                            Cuenta {c.code} · RTN {c.rtf ? formatRtn(c.rtf) : '—'}
+                          <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="rounded-md border border-sky-500/40 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400 shadow-xs">
+                                Cuenta
+                              </span>
+                              <span className="font-mono text-xs font-semibold text-foreground/90 tabular-nums">
+                                {c.code}
+                              </span>
+                            </span>
+
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 shadow-xs">
+                                RTN
+                              </span>
+                              <span className="font-mono text-xs font-semibold text-foreground/90 tabular-nums">
+                                {c.rtf ? formatRtn(c.rtf) : '—'}
+                              </span>
+                            </span>
                           </span>
                         </span>
 

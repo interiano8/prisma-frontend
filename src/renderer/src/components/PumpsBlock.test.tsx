@@ -73,7 +73,7 @@ describe('PumpsBlock', () => {
     expect(labels).toEqual(['4', '5'])
   })
 
-  it('al ver todas distingue las del POS (acento) de las ajenas (atenuadas)', () => {
+  it('al ver todas distingue las del POS de las ajenas (atenuadas)', () => {
     const { container } = renderBlock(
       [pump({ pumpId: 1 }), pump({ pumpId: 3 })],
       [1, 3],
@@ -82,8 +82,8 @@ describe('PumpsBlock', () => {
     const btns = Array.from(container.querySelectorAll('button'))
     const mine = btns.find((b) => b.textContent === '3')
     const other = btns.find((b) => b.textContent === '1')
-    expect(mine?.className).toContain('ring-accent')
-    expect(other?.className).toContain('opacity-45')
+    expect(mine?.className).toContain('border-border-strong')
+    expect(other?.className).toContain('opacity-40')
   })
 
   it('sin ver todas no aplica distinción de propiedad', () => {
@@ -93,7 +93,6 @@ describe('PumpsBlock', () => {
       { showAll: false, myPumpIds: [3] },
     )
     const btn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === '3')
-    expect(btn?.className).not.toContain('ring-accent')
-    expect(btn?.className).not.toContain('opacity-45')
+    expect(btn?.className).not.toContain('opacity-40')
   })
 })

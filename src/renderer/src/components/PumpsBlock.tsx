@@ -43,18 +43,18 @@ export default function PumpsBlock({
   const stateVisual = (d: Dispenser) => {
     switch (d.state) {
       case 'fuelling':
-        return { wrap: 'border-accent/60 bg-accent/10 text-accent', icon: 'text-accent', dot: 'bg-accent', pulse: true, label: 'Despachando' }
+        return { wrap: 'border-border-strong bg-card text-accent', icon: 'text-accent', dot: 'bg-accent', pulse: true, label: 'Despachando' }
       case 'starting':
-        return { wrap: 'border-amber-400/70 bg-amber-400/10 text-amber-400', icon: 'text-amber-400', dot: null, pulse: false, label: 'Arrancando' }
+        return { wrap: 'border-amber-400/50 bg-amber-400/10 text-amber-400', icon: 'text-amber-400', dot: null, pulse: false, label: 'Arrancando' }
       case 'espera':
-        return { wrap: 'border-amber-400/40 bg-amber-400/5 text-amber-400', icon: 'text-amber-400', dot: 'bg-amber-400', pulse: false, label: 'En espera' }
+        return { wrap: 'border-amber-400/30 bg-amber-400/5 text-amber-400', icon: 'text-amber-400', dot: 'bg-amber-400', pulse: false, label: 'En espera' }
       case 'pausa':
-        return { wrap: 'border-sky-400/40 bg-sky-400/5 text-sky-400', icon: 'text-sky-400', dot: 'bg-sky-400', pulse: false, label: 'Pausa' }
+        return { wrap: 'border-sky-400/30 bg-sky-400/5 text-sky-400', icon: 'text-sky-400', dot: 'bg-sky-400', pulse: false, label: 'Pausa' }
       case 'error':
-        return { wrap: 'border-danger/60 bg-danger/10 text-danger', icon: 'text-danger', dot: 'bg-danger', pulse: false, label: 'Error' }
+        return { wrap: 'border-danger/50 bg-danger/10 text-danger', icon: 'text-danger', dot: 'bg-danger', pulse: false, label: 'Error' }
       default:
         // 'idle' y 'colgada' se pintan neutral; el botón refleja solo el estado físico.
-        return { wrap: 'border-border-strong bg-card text-muted hover:border-accent/50 hover:text-primary', icon: 'text-muted', dot: null, pulse: false, label: '' }
+        return { wrap: 'border-border bg-card text-muted hover:border-border-strong hover:text-primary', icon: 'text-muted', dot: null, pulse: false, label: '' }
     }
   }
 
@@ -90,11 +90,11 @@ export default function PumpsBlock({
           }
           const v = stateVisual(d)
           const mine = myPumpIds?.includes(d.pumpId) ?? false
-          // Al "ver todas", se distingue lo del POS (acento) de lo ajeno (atenuado).
+          // Al "ver todas", se distingue lo del POS de lo ajeno (atenuado) sin ring de acento.
           const ownership = showAll
             ? mine
-              ? 'ring-2 ring-accent/70'
-              : 'opacity-45'
+              ? 'border-border-strong shadow-xs'
+              : 'opacity-40'
             : ''
           return (
             <button

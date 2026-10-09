@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { CartItem, Customer } from '../api/types'
 import type { Totals } from '../lib/pos-cart'
 import {
@@ -21,7 +22,10 @@ import {
   CreditCard,
   Star,
   Ban,
-  Pause
+  Pause,
+  X,
+  ChevronRight,
+  SlidersHorizontal
 } from 'lucide-react'
 
 interface Props {
@@ -72,6 +76,9 @@ export default function CartPanel(props: Props) {
     maximumFractionDigits: 6,
   })
 
+  const [opsModalOpen, setOpsModalOpen] = useState(false)
+  const parkedCount = props.parkedCount || 0
+
   const checkoutDisabled = !hasShift || effectiveCart.length === 0 || busy || !customer || !customer.rtf || !!customer.blocked
   const hint = !hasShift
     ? 'Abra un turno para cobrar'
@@ -105,52 +112,31 @@ export default function CartPanel(props: Props) {
             {totalQtyLabel} u
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          {props.onOpenParkedSales && (
-            <button
-              className={`btn-press inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-                (props.parkedCount || 0) > 0
-                  ? 'bg-accent/15 text-accent border border-accent/30'
-                  : 'bg-card text-muted hover:text-primary'
-              }`}
-              onClick={props.onOpenParkedSales}
-              title="Ver ventas en espera (Aparcadas)"
-            >
-              <Pause size={12} />
-              <span>Aparcadas</span>
-              {(props.parkedCount || 0) > 0 && (
-                <span className="rounded-full bg-accent px-1.5 py-0.2 text-[10px] text-accent-foreground">
-                  {props.parkedCount}
-                </span>
-              )}
-            </button>
-          )}
 
-          {props.onParkSale && (
-            <button
-              className="btn-press inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-xs font-medium text-muted hover:border-accent/40 hover:text-accent disabled:opacity-40"
-              onClick={props.onParkSale}
-              disabled={effectiveCart.length === 0 || busy}
-              title="Aparcar venta actual (F7)"
-            >
-              <Pause size={12} />
-              <span>Aparcar (F7)</span>
-            </button>
-          )}
+        {/* Único botón consolidado para Operaciones / Turno / Aparcadas */}
+        <button
+          type="button"
+          onClick={() => setOpsModalOpen(true)}
+          className={`btn-press inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-xs transition-all ${
+            !hasShift
+              ? 'border-warning/40 bg-warning/15 text-warning hover:bg-warning/25 animate-pulse'
+              : parkedCount > 0
+                ? 'border-amber-500/40 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                : 'border-border bg-card hover:border-accent/40 hover:text-accent text-foreground'
+          }`}
+          title="Menú de operaciones: Aparcadas y Turno"
+        >
+          <SlidersHorizontal size={13} className={!hasShift ? 'text-warning' : parkedCount > 0 ? 'text-amber-400' : 'text-accent'} />
+          <span>
+            {hasShift ? `Turno ${shiftNumber}` : 'Abrir turno'}
+          </span>
 
-          {hasShift ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-              <Clock size={12} /> Turno {shiftNumber}
+          {parkedCount > 0 && (
+            <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black">
+              {parkedCount}
             </span>
-          ) : (
-            <button
-              className="btn-press inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/20"
-              onClick={props.onOpenShift}
-            >
-              <Clock size={12} /> Abrir turno
-            </button>
           )}
-        </div>
+        </button>
       </div>
 
       <div className="border-b border-border pb-3">
@@ -174,13 +160,31 @@ export default function CartPanel(props: Props) {
                     </span>
                   )}
                 </span>
-                <span className="text-xs text-muted">
-                  Cuenta {customer.code}
-                  {customer.rtf && <span> · RTN {formatRtn(customer.rtf)}</span>}
-                  {customer.code === noConsumidorFinal && noConsumidorFinal && (
-                    <span> · {noConsumidorFinal}</span>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <div className="inline-flex items-center gap-1.5">
+                    <span className="rounded-md border border-sky-500/40 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400 shadow-xs">
+                      Cuenta
+                    </span>
+                    <span className="font-mono text-xs font-semibold text-foreground tabular-nums">
+                      {customer.code}
+                    </span>
+                  </div>
+
+                  {customer.rtf && (
+                    <div className="inline-flex items-center gap-1.5">
+                      <span className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 shadow-xs">
+                        RTN
+                      </span>
+                      <span className="font-mono text-xs font-semibold text-foreground tabular-nums">
+                        {formatRtn(customer.rtf)}
+                      </span>
+                    </div>
                   )}
-                </span>
+
+                  {customer.code === noConsumidorFinal && noConsumidorFinal && (
+                    <span className="text-muted">· {noConsumidorFinal}</span>
+                  )}
+                </div>
               </div>
             </div>
             <button
@@ -358,6 +362,153 @@ export default function CartPanel(props: Props) {
         </button>
         {hint && <p className="mt-1.5 text-center text-xs text-muted">{hint}</p>}
       </div>
+
+      {/* Modal de Operaciones: Aparcadas y Turno */}
+      {opsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in-0">
+          <div className="card-surface w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border/70 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                  <SlidersHorizontal size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Operaciones de Turno y Ventas</h3>
+                  <p className="text-xs text-muted">Gestión rápida del POS</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpsModalOpen(false)}
+                className="btn-press rounded-lg p-1.5 text-muted hover:bg-white/5 hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2.5">
+              {/* Opción 1: Ver ventas aparcadas */}
+              {props.onOpenParkedSales && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpsModalOpen(false)
+                    props.onOpenParkedSales?.()
+                  }}
+                  className="btn-press flex items-center justify-between rounded-xl border border-border bg-surface/60 p-3.5 text-left transition-all hover:border-amber-500/50 hover:bg-amber-500/10 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 group-hover:scale-105 transition-transform">
+                      <Pause size={20} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-foreground group-hover:text-amber-400">
+                        Ver ventas aparcadas
+                      </div>
+                      <div className="text-xs text-muted">
+                        Recuperar o gestionar ventas en espera
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {parkedCount > 0 ? (
+                      <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-black shadow-xs">
+                        {parkedCount}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">0</span>
+                    )}
+                    <ChevronRight size={16} className="text-muted group-hover:text-amber-400" />
+                  </div>
+                </button>
+              )}
+
+              {/* Opción 2: Aparcar venta actual */}
+              {props.onParkSale && (
+                <button
+                  type="button"
+                  disabled={effectiveCart.length === 0 || busy}
+                  onClick={() => {
+                    setOpsModalOpen(false)
+                    props.onParkSale?.()
+                  }}
+                  className="btn-press flex items-center justify-between rounded-xl border border-border bg-surface/60 p-3.5 text-left transition-all hover:border-accent/50 hover:bg-accent/10 disabled:opacity-40 disabled:hover:border-border disabled:hover:bg-surface/60 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent group-hover:scale-105 transition-transform">
+                      <Pause size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground group-hover:text-accent">
+                          Aparcar venta actual
+                        </span>
+                        <kbd className="rounded border border-border/80 bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-muted">F7</kbd>
+                      </div>
+                      <div className="text-xs text-muted">
+                        Pausar la canasta actual para atender a otro cliente
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-muted group-hover:text-accent" />
+                </button>
+              )}
+
+              {/* Opción 3: Estado de Turno / Abrir Turno */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpsModalOpen(false)
+                  props.onOpenShift()
+                }}
+                className={`btn-press flex items-center justify-between rounded-xl border p-3.5 text-left transition-all group ${
+                  hasShift
+                    ? 'border-border bg-surface/60 hover:border-success/50 hover:bg-success/10'
+                    : 'border-warning/40 bg-warning/15 hover:bg-warning/25 text-warning'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    hasShift ? 'bg-success/15 text-success' : 'bg-warning/20 text-warning'
+                  } group-hover:scale-105 transition-transform`}>
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-semibold ${hasShift ? 'text-foreground group-hover:text-success' : 'text-warning'}`}>
+                      {hasShift ? `Turno activo: #${shiftNumber}` : 'Abrir nuevo turno'}
+                    </div>
+                    <div className="text-xs text-muted">
+                      {hasShift ? 'Consultar detalles o cerrar turno' : 'Es necesario un turno abierto para facturar'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasShift ? (
+                    <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">
+                      Abierto
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-warning/20 px-2 py-0.5 text-[11px] font-bold text-warning">
+                      Requerido
+                    </span>
+                  )}
+                  <ChevronRight size={16} className="text-muted group-hover:text-foreground" />
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-5 border-t border-border/70 pt-3">
+              <button
+                type="button"
+                onClick={() => setOpsModalOpen(false)}
+                className="btn-press w-full rounded-xl border border-border bg-card py-2.5 text-center text-xs font-semibold text-muted hover:text-foreground hover:bg-white/5"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

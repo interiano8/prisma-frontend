@@ -120,28 +120,29 @@ describe('PumpModal', () => {
     expect(screen.getByText(/#4002/)).toBeInTheDocument()
   })
 
-  it('permite seleccionar múltiples transacciones y agregarlas juntas', () => {
-    const onAddMultiple = vi.fn()
+  it('agrega la venta con clic simple y con doble clic agrega y cierra el modal', async () => {
+    const onAdd = vi.fn()
+    const onAddAndClose = vi.fn()
     const multiTxs: PumpTransaction[] = [
       { ...txs[0], saleId: 5001, amount: 400 },
-      { ...txs[0], saleId: 5002, amount: 600 },
     ]
-    renderModal({ transactions: multiTxs, onAddMultiple })
+    renderModal({ transactions: multiTxs, onAdd, onAddAndClose })
 
-    const chk1 = screen.getByTestId('checkbox-sale-5001')
-    const chk2 = screen.getByTestId('checkbox-sale-5002')
+    // No debe existir checkbox
+    expect(screen.queryByTestId('checkbox-sale-5001')).not.toBeInTheDocument()
 
-    fireEvent.click(chk1)
-    expect(screen.getByTestId('multi-selection-bar')).toBeInTheDocument()
-    expect(screen.getByText(/1 venta seleccionada/)).toBeInTheDocument()
+    // Tarjeta limpia interactiva
+    const card = screen.getByText(/#5001/).closest('div[class*="rounded-xl"]')!
+    expect(card).toBeInTheDocument()
 
-    fireEvent.click(chk2)
-    expect(screen.getByText(/2 ventas seleccionadas/)).toBeInTheDocument()
-    expect(screen.getByText(/1,000\.00/)).toBeInTheDocument()
+    // Clic simple
+    fireEvent.click(card)
+    await new Promise((r) => setTimeout(r, 320))
+    expect(onAdd).toHaveBeenCalledWith(multiTxs[0])
 
-    const btnAddAll = screen.getByText(/Agregar al carrito \(2\)/)
-    fireEvent.click(btnAddAll)
-
-    expect(onAddMultiple).toHaveBeenCalledWith(multiTxs)
+    // Doble clic
+    fireEvent.click(card)
+    fireEvent.click(card)
+    expect(onAddAndClose).toHaveBeenCalledWith(multiTxs[0])
   })
 })

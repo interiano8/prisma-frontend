@@ -151,7 +151,10 @@ describe('CartPanel', () => {
     expect(onOpenCustomerMode).toHaveBeenCalledWith('credito')
     await user.click(screen.getByRole('button', { name: /Fidelización/ }))
     expect(onOpenCustomerMode).toHaveBeenCalledWith('fidelizacion')
+    // El botón abre el modal de operaciones y desde ahí se abre turno
     await user.click(screen.getByRole('button', { name: /Abrir turno/ }))
+    // Ahora en el modal:
+    await user.click(screen.getByRole('button', { name: /Abrir nuevo turno/ }))
     expect(onOpenShift).toHaveBeenCalledTimes(1)
   })
 
@@ -164,5 +167,54 @@ describe('CartPanel', () => {
     expect(onChangeCustomer).toHaveBeenCalledTimes(1)
     await user.click(screen.getAllByTitle(/Aplicar \/ quitar descuento/)[0])
     expect(onToggleDiscount).toHaveBeenCalledTimes(1)
+  })
+
+  it('renderiza y ejecuta acciones desde el modal de operaciones', async () => {
+    const user = userEvent.setup()
+    const onOpenParkedSales = vi.fn()
+    const onParkSale = vi.fn()
+    const { rerender } = render(
+      <CartPanel
+        {...baseProps({
+          onOpenParkedSales,
+          onParkSale,
+          parkedCount: 3
+        })}
+      />
+    )
+
+    // Botón único en cabecera
+    const opsButton = screen.getByTitle(/Menú de operaciones/i)
+    expect(opsButton).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+
+    // Abrir modal de operaciones
+    await user.click(opsButton)
+    expect(screen.getByText('Operaciones de Turno y Ventas')).toBeInTheDocument()
+
+    // Clic en ver aparcadas
+    const viewButton = screen.getByRole('button', { name: /Ver ventas aparcadas/ })
+    await user.click(viewButton)
+    expect(onOpenParkedSales).toHaveBeenCalledTimes(1)
+
+    // Reabrir modal y clic en aparcar
+    await user.click(opsButton)
+    const parkButton = screen.getByRole('button', { name: /Aparcar venta actual/ })
+    expect(parkButton).toBeEnabled()
+    await user.click(parkButton)
+    expect(onParkSale).toHaveBeenCalledTimes(1)
+
+    // Con carrito vacío, el botón de aparcar debe deshabilitarse en el modal
+    rerender(
+      <CartPanel
+        {...baseProps({
+          effectiveCart: [],
+          onOpenParkedSales,
+          onParkSale
+        })}
+      />
+    )
+    await user.click(opsButton)
+    expect(screen.getByRole('button', { name: /Aparcar venta actual/ })).toBeDisabled()
   })
 })
