@@ -260,3 +260,33 @@ export interface HealthCheckResult {
   cloudSync?: HealthCloudSync
 }
 
+export type EstadoVentaAparcada = 'PARKED' | 'RESUMED' | 'DISCARDED' | 'EXPIRED'
+
+export interface ParkedSale {
+  id: string
+  codigo: string
+  storeId: string
+  posNo: string
+  usuario: string
+  turnoId: string
+  cliente?: Customer | null
+  items: CartItem[]
+  nota?: string | null
+  total: number
+  estado: EstadoVentaAparcada
+  fechaCreacion: string
+  fechaActualizado: string
+}
+
+export interface CreateParkedSalePayload {
+  storeId: string
+  posNo: string
+  usuario: string
+  turnoId: string
+  cliente?: Customer | null
+  items: CartItem[]
+  nota?: string
+  total: number
+}
+
+

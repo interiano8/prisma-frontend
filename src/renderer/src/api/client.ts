@@ -8,7 +8,9 @@ import type {
   MediaFile,
   PaymentMethod,
   Product,
-  HealthCheckResult
+  HealthCheckResult,
+  ParkedSale,
+  CreateParkedSalePayload
 } from './types'
 
 const STORAGE_KEY = 'prisma:backend-url'
@@ -244,6 +246,19 @@ export const api = {
 
   searchInvoicesPaginated: (params: Record<string, string>) =>
     request<{ total: number; page: number; pageSize: number; data: any[] }>(`/api/invoices/search?${new URLSearchParams(params)}`),
+
+  // Parked Sales (Ventas Aparcadas)
+  parkSale: (body: CreateParkedSalePayload) =>
+    request<ParkedSale>('/api/parked-sales', { method: 'POST', body: JSON.stringify(body) }),
+
+  listParkedSales: (storeId: string) =>
+    request<ParkedSale[]>(`/api/parked-sales?storeId=${encodeURIComponent(storeId)}`),
+
+  resumeParkedSale: (id: string) =>
+    request<ParkedSale>(`/api/parked-sales/${encodeURIComponent(id)}/resume`, { method: 'POST' }),
+
+  discardParkedSale: (id: string) =>
+    request<ParkedSale>(`/api/parked-sales/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   invoiceLines: (transactionId: string) => request<any[]>(`/api/invoices/${transactionId}/lines`),
 

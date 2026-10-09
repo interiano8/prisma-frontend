@@ -15,6 +15,8 @@ import CheckoutModal from '../components/CheckoutModal'
 import CustomerModal from '../components/CustomerModal'
 import CreateCustomerModal from '../components/CreateCustomerModal'
 import PumpModal from '../components/PumpModal'
+import ParkSaleModal from '../components/ParkSaleModal'
+import ParkedSalesListModal from '../components/ParkedSalesListModal'
 import { useCart } from '../hooks/useCart'
 import { useCheckout } from '../hooks/useCheckout'
 import { useBarcodeScan } from '../hooks/useBarcodeScan'
@@ -33,6 +35,11 @@ export default function PosScreen() {
   const [message, setMessage] = useState('')
   const [saleDone, setSaleDone] = useState<{ invoiceNo: string; change: number } | null>(null)
 
+  const [parkModalOpen, setParkModalOpen] = useState(false)
+  const [parkedListOpen, setParkedListOpen] = useState(false)
+  const [parkedSales, setParkedSales] = useState<any[]>([])
+  const [parkedLoading, setParkedLoading] = useState(false)
+
   const [dispensers, setDispensers] = useState<Dispenser[]>([])
   const [showAllPumps, setShowAllPumps] = useState(false)
   const [selectedPump, setSelectedPump] = useState<Dispenser | null>(null)
@@ -44,6 +51,21 @@ export default function PosScreen() {
   const hasShift = !!session?.shiftInfo?.Shift
 
   const [customer, setCustomer] = useState<Customer | null>(null)
+
+  function loadParkedSales() {
+    if (!store.storeId) return
+    setParkedLoading(true)
+    api
+      .listParkedSales(store.storeId)
+      .then((data) => setParkedSales(data || []))
+      .catch(() => setParkedSales([]))
+      .finally(() => setParkedLoading(false))
+  }
+
+  useEffect(() => {
+    loadParkedSales()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.storeId])
 
   const cartApi = useCart({
     customerCode: customer?.code ?? null,
@@ -165,12 +187,73 @@ export default function PosScreen() {
       } else if (e.key === 'F6') {
         e.preventDefault()
         checkoutApi.openCustomerMode('fidelizacion')
+      } else if (e.key === 'F7') {
+        e.preventDefault()
+        if (effectiveCart.length > 0 && !busy) {
+          setParkModalOpen(true)
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkoutApi])
+  }, [checkoutApi, effectiveCart.length, busy])
+
+  async function handleParkSale(nota: string) {
+    if (effectiveCart.length === 0) return
+    try {
+      const payload = {
+        storeId: store.storeId,
+        posNo: store.posNumber,
+        usuario: session!.user.name,
+        turnoId: session!.shiftInfo.Shift ? String(session!.shiftInfo.Shift) : '0',
+        cliente: customer,
+        items: cartApi.cart, // Items base limpios sin descuentos congelados
+        nota,
+        total: totals.total
+      }
+      const res = await api.parkSale(payload)
+      cartApi.clear()
+      setCustomer(null)
+      setIsFidelizacion(false)
+      setParkModalOpen(false)
+      loadParkedSales()
+      setMessage(`Venta aparcada con código ${res.codigo}.`)
+    } catch (e: any) {
+      setMessage(`Error al aparcar venta: ${e.message}`)
+    }
+  }
+
+  async function handleResumeSale(sale: any) {
+    try {
+      await api.resumeParkedSale(sale.id)
+      cartApi.clear()
+      if (Array.isArray(sale.items)) {
+        cartApi.setCart(sale.items)
+      }
+      if (sale.cliente) {
+        setCustomer(sale.cliente)
+      } else {
+        setCustomer(null)
+      }
+      setIsFidelizacion(false)
+      setParkedListOpen(false)
+      loadParkedSales()
+      setMessage(`Venta ${sale.codigo} recuperada exitosamente.`)
+    } catch (e: any) {
+      setMessage(`Error al reanudar venta: ${e.message}`)
+    }
+  }
+
+  async function handleDiscardSale(saleId: string) {
+    try {
+      await api.discardParkedSale(saleId)
+      loadParkedSales()
+      setMessage('Venta aparcada descartada.')
+    } catch (e: any) {
+      setMessage(`Error al descartar venta: ${e.message}`)
+    }
+  }
 
   useEffect(() => {
     if (!store.mostrarBombas) return
@@ -306,6 +389,12 @@ export default function PosScreen() {
         moneda={store.moneda}
         noConsumidorFinal={store.noConsumidorFinal}
         busy={busy}
+        parkedCount={parkedSales.length}
+        onParkSale={() => setParkModalOpen(true)}
+        onOpenParkedSales={() => {
+          loadParkedSales()
+          setParkedListOpen(true)
+        }}
         onSetConsumidorFinal={() => setConsumidorFinal()}
         onOpenCustomerMode={(m) => openCustomerMode(m)}
         onChangeCustomer={() => {
@@ -520,6 +609,23 @@ export default function PosScreen() {
           </div>
         </div>
       )}
+
+      <ParkSaleModal
+        open={parkModalOpen}
+        onClose={() => setParkModalOpen(false)}
+        onConfirm={handleParkSale}
+        busy={busy}
+      />
+
+      <ParkedSalesListModal
+        open={parkedListOpen}
+        onClose={() => setParkedListOpen(false)}
+        sales={parkedSales}
+        loading={parkedLoading}
+        moneda={store.moneda}
+        onResume={handleResumeSale}
+        onDiscard={handleDiscardSale}
+      />
     </div>
   )
 }

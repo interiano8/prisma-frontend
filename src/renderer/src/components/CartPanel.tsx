@@ -20,7 +20,8 @@ import {
   IdCard,
   CreditCard,
   Star,
-  Ban
+  Ban,
+  Pause
 } from 'lucide-react'
 
 interface Props {
@@ -35,6 +36,10 @@ interface Props {
   moneda?: string
   noConsumidorFinal?: string
   busy: boolean
+  parkedCount?: number
+  onParkSale?: () => void
+  onOpenParkedSales?: () => void
+  onClearCart?: () => void
   onSetConsumidorFinal: () => void
   onOpenCustomerMode: (mode: 'rtn' | 'credito' | 'fidelizacion') => void
   onChangeCustomer: () => void
@@ -100,18 +105,52 @@ export default function CartPanel(props: Props) {
             {totalQtyLabel} u
           </span>
         </div>
-        {hasShift ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-            <Clock size={12} /> Turno {shiftNumber}
-          </span>
-        ) : (
-          <button
-            className="btn-press inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/20"
-            onClick={props.onOpenShift}
-          >
-            <Clock size={12} /> Abrir turno
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {props.onOpenParkedSales && (
+            <button
+              className={`btn-press inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                (props.parkedCount || 0) > 0
+                  ? 'bg-accent/15 text-accent border border-accent/30'
+                  : 'bg-card text-muted hover:text-primary'
+              }`}
+              onClick={props.onOpenParkedSales}
+              title="Ver ventas en espera (Aparcadas)"
+            >
+              <Pause size={12} />
+              <span>Aparcadas</span>
+              {(props.parkedCount || 0) > 0 && (
+                <span className="rounded-full bg-accent px-1.5 py-0.2 text-[10px] text-accent-foreground">
+                  {props.parkedCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {props.onParkSale && (
+            <button
+              className="btn-press inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-xs font-medium text-muted hover:border-accent/40 hover:text-accent disabled:opacity-40"
+              onClick={props.onParkSale}
+              disabled={effectiveCart.length === 0 || busy}
+              title="Aparcar venta actual (F7)"
+            >
+              <Pause size={12} />
+              <span>Aparcar (F7)</span>
+            </button>
+          )}
+
+          {hasShift ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+              <Clock size={12} /> Turno {shiftNumber}
+            </span>
+          ) : (
+            <button
+              className="btn-press inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/20"
+              onClick={props.onOpenShift}
+            >
+              <Clock size={12} /> Abrir turno
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="border-b border-border pb-3">
