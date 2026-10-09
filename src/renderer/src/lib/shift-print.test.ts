@@ -88,4 +88,56 @@ describe('buildShiftCloseLines', () => {
       .join('\n')
     expect(text).toContain('Imp. 13/09/2026, 17:50:00')
   })
+
+  it('imprime encabezado v1 por defecto o cuando version es 1', () => {
+    const text = buildShiftCloseLines(report, { ...ctx, version: 1 })
+      .map((l) => l.text)
+      .join('\n')
+    expect(text).toContain('C I E R R E   D E   T U R N O   (v1)')
+  })
+
+  it('imprime encabezado reajustado cuando version > 1', () => {
+    const text = buildShiftCloseLines(report, { ...ctx, version: 2 })
+      .map((l) => l.text)
+      .join('\n')
+    expect(text).toContain('CIERRE DE TURNO - v2 (REAJUSTADO)')
+  })
+
+  it('imprime la sección acumulativa de reclasificaciones cuando existen auditorías', () => {
+    const text = buildShiftCloseLines(report, {
+      ...ctx,
+      version: 2,
+      reclassifications: [
+        {
+          idVenta: 'FAC-001',
+          versionTurno: 1,
+          tipoCambio: 'FORMA_PAGO',
+          motivo: 'Cajero cobró con tarjeta pero marcó efectivo',
+          idUsuarioAutoriza: 'ADMIN',
+          datosOriginales: { pagos: [{ codigoMetodoPago: '01', monto: 500 }] },
+          datosNuevos: { pagos: [{ codigoMetodoPago: '02', monto: 500 }] },
+        },
+        {
+          idVenta: 'FAC-002',
+          versionTurno: 2,
+          tipoCambio: 'CLIENTE_CONTADO',
+          motivo: 'Cliente solicitó factura con RTN',
+          idUsuarioAutoriza: 'SUPERVISOR',
+          datosOriginales: { cliente: { nombre: 'Consumidor Final' } },
+          datosNuevos: { cliente: { nombre: 'Transportes Rápidos' } },
+        },
+      ],
+    })
+      .map((l) => l.text)
+      .join('\n')
+
+    expect(text).toContain('*** RECLASIFICACIONES / AUDITORIA ***')
+    expect(text).toContain('Total modificaciones: 2')
+    expect(text).toContain('[v1] Doc: FAC-001')
+    expect(text).toContain('Pago: 01 -> 02 (L. 500.00)')
+    expect(text).toContain('[v2] Doc: FAC-002')
+    expect(text).toContain('Cliente: Consumidor Final -> Transportes Rápidos')
+    expect(text).toContain('Autorizado por: ADMIN')
+    expect(text).toContain('Autorizado por: SUPERVISOR')
+  })
 })

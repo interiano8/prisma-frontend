@@ -18,8 +18,10 @@ import {
   Layers,
   RefreshCw,
   ChevronLeft,
-  Printer
+  Printer,
+  ShieldCheck
 } from 'lucide-react'
+import ReclassifySaleModal from '../components/ReclassifySaleModal'
 
 import { usePermissions } from '../hooks/usePermissions'
 
@@ -61,6 +63,7 @@ export default function ShiftScreen() {
   const [message, setMessage] = useState('')
   const [report, setReport] = useState<any>(null)
   const [reportLoading, setReportLoading] = useState(false)
+  const [reclassifyOpen, setReclassifyOpen] = useState(false)
 
   // Vista del turno a detallar (por defecto el actual; permite ver otros turnos).
   const [viewShift, setViewShift] = useState<{
@@ -148,6 +151,16 @@ export default function ShiftScreen() {
   async function printReport(): Promise<boolean> {
     if (!report) return false
     const columns = Number(store.printerConfig?.columns) || 48
+    let reclassifications: any[] = []
+    try {
+      const shiftId = shift?.['POS Transaction ID']
+      if (shiftId) {
+        reclassifications = await api.shiftReclassifications(shiftId)
+      }
+    } catch {
+      reclassifications = []
+    }
+
     const ctx: ShiftCloseContext = {
       store: {
         storeName: store.storeName || store.name,
@@ -162,11 +175,13 @@ export default function ShiftScreen() {
         casaMatriz: store.casaMatriz,
       },
       turno: viewShift?.turno ?? shift?.Shift ?? null,
+      version: shift?.version ?? 1,
       fecha: viewShift?.fecha || localDate(shift?.['Shift Starting']),
       fechaImpresion: new Date().toLocaleString(),
       cajero: viewShift?.cajero || session!.user.name,
       pos: store.posNumber,
       columns,
+      reclassifications,
     }
     const lines = buildShiftCloseLines(report, ctx)
     const printerPath = store.printerConfig?.printerPath || store.printerConfig?.printerName || ''
@@ -241,6 +256,12 @@ export default function ShiftScreen() {
         </div>
         {shift?.Shift && (
           <div className="flex gap-2">
+            <button
+              className="btn-press flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent transition-colors hover:bg-accent/20"
+              onClick={() => setReclassifyOpen(true)}
+            >
+              <ShieldCheck size={14} /> Reclasificar venta
+            </button>
             <button className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:border-accent/40 hover:text-primary" onClick={() => loadReport()}>
               <RefreshCw size={14} /> Actualizar detalle
             </button>
@@ -623,6 +644,19 @@ export default function ShiftScreen() {
           </div>
         </div>
       </div>
+
+      <ReclassifySaleModal
+        open={reclassifyOpen}
+        storeId={store.storeId}
+        posNo={store.posNumber}
+        shiftNumber={shift?.Shift}
+        currentEmployee={session!.user.name}
+        onClose={() => setReclassifyOpen(false)}
+        onSuccess={(msg) => {
+          setMessage(msg)
+          loadReport()
+        }}
+      />
     </div>
   )
 }

@@ -203,6 +203,42 @@ export const api = {
   creditNote: (body: { storeId: string; posNo: string; username: string; invoiceNo: string; transactionId: string; reason: string; adminPassword: string }) =>
     request<any>('/api/invoices/credit-note', { method: 'POST', body: JSON.stringify(body) }),
 
+  reclassifySale: (
+    saleId: string,
+    body: {
+      storeId: string;
+      posNo: string;
+      adminPin: string;
+      supervisorUser?: string;
+      requestedByUser: string;
+      motivo: string;
+      nuevoMetodoPago?: {
+        codigoMetodoPago: string;
+        descripcion?: string;
+        referencia?: string;
+      };
+      nuevoCliente?: {
+        codigo: string;
+        nombre: string;
+        rtn?: string;
+      };
+    },
+  ) =>
+    request<{
+      success: boolean;
+      ventaId: string;
+      turnoId: string;
+      versionTurno: number;
+      mensaje: string;
+      totalesTurnoActualizados: any;
+    }>(`/api/invoices/${encodeURIComponent(saleId)}/reclassify`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  shiftReclassifications: (shiftId: string) =>
+    request<any[]>(`/api/shift/${encodeURIComponent(shiftId)}/reclassifications`),
+
   searchInvoices: (params: Record<string, string>) =>
     request<any[]>(`/api/invoices/search?${new URLSearchParams(params)}`),
 

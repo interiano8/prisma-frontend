@@ -23,11 +23,22 @@ export interface ShiftCloseContext {
     casaMatriz?: string
   }
   turno?: string | number | null
+  version?: number | null
   fecha?: string
   fechaImpresion?: string
   cajero?: string
   pos?: string | number | null
   columns: number
+  reclassifications?: Array<{
+    idVenta?: string
+    versionTurno?: number
+    tipoCambio?: string
+    motivo?: string
+    idUsuarioAutoriza?: string
+    createdAt?: string | Date
+    datosOriginales?: any
+    datosNuevos?: any
+  }>
 }
 
 interface GroupRow {
@@ -84,7 +95,12 @@ export function buildShiftCloseLines(
 
   lines.push(...buildEncabezado(ctx.store, ctx.columns))
   L(separator(ctx.columns))
-  L('C I E R R E   D E   T U R N O', { align: 'center', bold: true })
+  const versionNum = Number(ctx.version ?? 1)
+  const tituloCierre =
+    versionNum > 1
+      ? `CIERRE DE TURNO - v${versionNum} (REAJUSTADO)`
+      : 'C I E R R E   D E   T U R N O   (v1)'
+  L(tituloCierre, { align: 'center', bold: true })
   L(separator(ctx.columns))
   if (ctx.turno != null && ctx.turno !== '')
     L(`Turno: ${ctx.turno}     Fecha: ${ctx.fecha || ''}`)
@@ -145,6 +161,33 @@ export function buildShiftCloseLines(
 
   L(separator(ctx.columns))
   if (ctx.cajero) L(`Cajero: ${ctx.cajero}`)
+
+  // Auditoría acumulativa de reclasificaciones si existen
+  if (ctx.reclassifications && ctx.reclassifications.length > 0) {
+    L(separator(ctx.columns))
+    L('*** RECLASIFICACIONES / AUDITORIA ***', { align: 'center', bold: true })
+    L(`Total modificaciones: ${ctx.reclassifications.length}`)
+    L(separator(ctx.columns))
+
+    ctx.reclassifications.forEach((r, idx) => {
+      const vTag = r.versionTurno ? `[v${r.versionTurno}] ` : ''
+      L(`${idx + 1}. ${vTag}Doc: ${r.idVenta || 'N/A'}`)
+      if (r.tipoCambio === 'FORMA_PAGO' || r.tipoCambio === 'AMBOS') {
+        const pAnt = r.datosOriginales?.pagos?.[0]?.codigoMetodoPago || 'ANT'
+        const pNue = r.datosNuevos?.pagos?.[0]?.codigoMetodoPago || 'NUE'
+        const monto = r.datosNuevos?.pagos?.[0]?.monto ?? r.datosOriginales?.pagos?.[0]?.monto ?? 0
+        L(`   Pago: ${pAnt} -> ${pNue} (L. ${Number(monto).toFixed(2)})`)
+      }
+      if (r.tipoCambio === 'CLIENTE_CONTADO' || r.tipoCambio === 'AMBOS') {
+        const cAnt = r.datosOriginales?.cliente?.nombre || 'Consumidor Final'
+        const cNue = r.datosNuevos?.cliente?.nombre || 'Cliente'
+        L(`   Cliente: ${cAnt} -> ${cNue}`)
+      }
+      if (r.motivo) L(`   Motivo: ${r.motivo}`)
+      if (r.idUsuarioAutoriza) L(`   Autorizado por: ${r.idUsuarioAutoriza}`)
+    })
+  }
+
   L('', { align: 'center' })
 
   return lines
