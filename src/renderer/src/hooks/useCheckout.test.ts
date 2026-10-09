@@ -315,6 +315,52 @@ describe('useCheckout - Manejo de error en acumulación Leal', () => {
     expect(onSaleComplete).toHaveBeenCalledWith('001-001-01-00000105', 0)
   })
 
+  it('rechaza ventas mayores a L 10,000.00 cuando el cliente es Consumidor Final', async () => {
+    const setMessage = vi.fn()
+    const createInvoiceMock = vi.spyOn(api, 'createInvoice')
+
+    const { result } = renderHook(() =>
+      useCheckout({
+        store: mockSession.storeConfig,
+        session: mockSession,
+        effectiveCart: mockCart,
+        totals: { total: 10500, discount: 0, tax: 1575, subtotal: 8925 },
+        hasShift: true,
+        customer: { code: 'CF', name: 'CONSUMIDOR FINAL', rtf: '08011999123456' } as any,
+        onCustomerChange: vi.fn(),
+        onSaleComplete: vi.fn(),
+        setMessage,
+        printTicket: vi.fn().mockResolvedValue(undefined)
+      })
+    )
+
+    act(() => {
+      result.current.addPayment({
+        code: '1002',
+        description: 'EFECTIVO',
+        categoria: 'EFECTIVO',
+        moneda: 'HNL',
+        generaCambio: true,
+        facturaContado: true,
+        facturaCredito: false,
+        salidaCombustible: false,
+        fidelizacion: false,
+        requiereReferencia: false,
+        imagen: null,
+        activo: true
+      })
+    })
+
+    await act(async () => {
+      await result.current.checkout()
+    })
+
+    expect(setMessage).toHaveBeenCalledWith(
+      expect.stringContaining('no se permiten ventas mayores a L 10,000.00 a Consumidor Final')
+    )
+    expect(createInvoiceMock).not.toHaveBeenCalled()
+  })
+
   describe('Validación estricta de crédito en checkout', () => {
     const mockCreditoCustomer = {
       code: 'CL001',

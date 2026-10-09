@@ -238,6 +238,13 @@ export default function PosScreen() {
     cartApi.addFuel(tx, vatGroup, productName)
   }
 
+  async function addMultipleFuelSales(txs: PumpTransaction[]) {
+    for (const tx of txs) {
+      await addFuelSale(tx)
+    }
+    setSelectedPump(null)
+  }
+
   async function openPumpModal(d: Dispenser) {
     setSelectedPump(d)
     setPumpTransactions([])
@@ -443,6 +450,7 @@ export default function PosScreen() {
             addFuelSale(t)
             setSelectedPump(null)
           }}
+          onAddMultiple={addMultipleFuelSales}
         />
       )}
 

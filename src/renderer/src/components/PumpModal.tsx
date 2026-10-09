@@ -14,12 +14,14 @@ interface Props {
   onClose: () => void
   onAdd: (t: PumpTransaction) => void
   onAddAndClose: (t: PumpTransaction) => void
+  onAddMultiple?: (txs: PumpTransaction[]) => void
 }
 
 const DOUBLE_TAP_MS = 280
 
 export default function PumpModal(props: Props) {
   const [search, setSearch] = useState('')
+  const [selectedSaleIds, setSelectedSaleIds] = useState<Set<number>>(new Set())
   const lastTap = useRef<{ t: number; saleId: number | null }>({ t: 0, saleId: null })
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -72,18 +74,34 @@ export default function PumpModal(props: Props) {
     }
   }
 
+  function toggleSelection(t: PumpTransaction, e: React.MouseEvent) {
+    e.stopPropagation()
+    setSelectedSaleIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(t.saleId)) {
+        next.delete(t.saleId)
+      } else {
+        next.add(t.saleId)
+      }
+      return next
+    })
+  }
+
   function renderCard(t: PumpTransaction, isLatestPending = false) {
     const inCart = props.cartSaleIds.has(t.saleId)
+    const isSelected = selectedSaleIds.has(t.saleId)
     const status = txStatus(t, props.minutosAtrasada)
     const cardClass = inCart
       ? 'border-accent/50 bg-accent/10 opacity-60'
-      : isLatestPending
-        ? 'border-accent bg-accent/5 shadow-sm ring-1 ring-accent/30'
-        : status === 'facturada'
-          ? 'border-success/60 bg-success/10'
-          : status === 'atrasada'
-            ? 'border-warning/60 bg-warning/10'
-            : 'border-border-strong bg-card'
+      : isSelected
+        ? 'border-accent bg-accent/15 shadow-sm ring-2 ring-accent'
+        : isLatestPending
+          ? 'border-accent bg-accent/5 shadow-sm ring-1 ring-accent/30'
+          : status === 'facturada'
+            ? 'border-success/60 bg-success/10'
+            : status === 'atrasada'
+              ? 'border-warning/60 bg-warning/10'
+              : 'border-border-strong bg-card'
     const badgeClass = inCart
       ? 'bg-accent/15 text-accent'
       : isLatestPending
@@ -108,10 +126,32 @@ export default function PumpModal(props: Props) {
           !inCart && status !== 'facturada' ? 'cursor-pointer hover:border-accent/50' : ''
         } ${cardClass}`}
         onClick={() => {
-          if (!inCart && status !== 'facturada') handleClick(t)
+          if (!inCart && status !== 'facturada') {
+            if (selectedSaleIds.size > 0) {
+              // Si ya está en modo selección múltiple, alternar selección
+              setSelectedSaleIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(t.saleId)) next.delete(t.saleId)
+                else next.add(t.saleId)
+                return next
+              })
+            } else {
+              handleClick(t)
+            }
+          }
         }}
         onDoubleClick={(e) => e.preventDefault()}
       >
+        {!inCart && status !== 'facturada' && (
+          <input
+            type="checkbox"
+            data-testid={`checkbox-sale-${t.saleId}`}
+            checked={isSelected}
+            onChange={() => {}}
+            onClick={(e) => toggleSelection(t, e)}
+            className="h-5 w-5 rounded border-border-strong text-accent focus:ring-accent cursor-pointer"
+          />
+        )}
         <div className="flex flex-1 flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <span className="font-mono text-base font-semibold tabular-nums">
@@ -249,6 +289,54 @@ export default function PumpModal(props: Props) {
             </div>
           )}
         </div>
+
+        {selectedSaleIds.size > 0 && (
+          <div
+            data-testid="multi-selection-bar"
+            className="mt-4 flex items-center justify-between rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm animate-in fade-in-0"
+          >
+            <div className="flex flex-col">
+              <span className="font-semibold text-primary">
+                {selectedSaleIds.size} venta{selectedSaleIds.size > 1 ? 's' : ''} seleccionada{selectedSaleIds.size > 1 ? 's' : ''}
+              </span>
+              <span className="text-xs text-muted">
+                Total:{' '}
+                <strong className="font-mono text-primary">
+                  {fmt(
+                    props.transactions
+                      .filter((t) => selectedSaleIds.has(t.saleId))
+                      .reduce((sum, t) => sum + Number(t.amount || 0), 0)
+                  )}
+                </strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-press rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-card"
+                onClick={() => setSelectedSaleIds(new Set())}
+              >
+                Deseleccionar
+              </button>
+              <button
+                className="btn-press rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-foreground hover:bg-accent-hover"
+                onClick={() => {
+                  const selectedTxs = props.transactions.filter((t) =>
+                    selectedSaleIds.has(t.saleId)
+                  )
+                  if (props.onAddMultiple) {
+                    props.onAddMultiple(selectedTxs)
+                  } else {
+                    selectedTxs.forEach((t) => props.onAdd(t))
+                    props.onClose()
+                  }
+                  setSelectedSaleIds(new Set())
+                }}
+              >
+                Agregar al carrito ({selectedSaleIds.size})
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

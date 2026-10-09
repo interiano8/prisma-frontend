@@ -119,4 +119,29 @@ describe('PumpModal', () => {
     expect(screen.queryByText(/#4001/)).not.toBeInTheDocument()
     expect(screen.getByText(/#4002/)).toBeInTheDocument()
   })
+
+  it('permite seleccionar múltiples transacciones y agregarlas juntas', () => {
+    const onAddMultiple = vi.fn()
+    const multiTxs: PumpTransaction[] = [
+      { ...txs[0], saleId: 5001, amount: 400 },
+      { ...txs[0], saleId: 5002, amount: 600 },
+    ]
+    renderModal({ transactions: multiTxs, onAddMultiple })
+
+    const chk1 = screen.getByTestId('checkbox-sale-5001')
+    const chk2 = screen.getByTestId('checkbox-sale-5002')
+
+    fireEvent.click(chk1)
+    expect(screen.getByTestId('multi-selection-bar')).toBeInTheDocument()
+    expect(screen.getByText(/1 venta seleccionada/)).toBeInTheDocument()
+
+    fireEvent.click(chk2)
+    expect(screen.getByText(/2 ventas seleccionadas/)).toBeInTheDocument()
+    expect(screen.getByText(/1,000\.00/)).toBeInTheDocument()
+
+    const btnAddAll = screen.getByText(/Agregar al carrito \(2\)/)
+    fireEvent.click(btnAddAll)
+
+    expect(onAddMultiple).toHaveBeenCalledWith(multiTxs)
+  })
 })

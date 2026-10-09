@@ -296,6 +296,22 @@ export function useCheckout(opts: UseCheckoutOptions) {
       opts.setMessage('El cliente seleccionado no tiene RTN y no puede facturar.')
       return
     }
+    if (!esTicket && opts.totals.total > 10000) {
+      const cfCode = (opts.store?.noConsumidorFinal || 'CF').trim().toUpperCase()
+      const custCode = (opts.customer.code || '').trim().toUpperCase()
+      const custName = (opts.customer.name || '').trim().toUpperCase()
+      const isConsumidorFinal =
+        custCode === cfCode ||
+        custCode === 'CF' ||
+        custName.includes('CONSUMIDOR FINAL')
+
+      if (isConsumidorFinal) {
+        opts.setMessage(
+          'Por disposición fiscal, no se permiten ventas mayores a L 10,000.00 a Consumidor Final. Debe registrar o seleccionar un cliente con RTN/DNI.'
+        )
+        return
+      }
+    }
     if (!esTicket) {
       if (
         payments.some(
