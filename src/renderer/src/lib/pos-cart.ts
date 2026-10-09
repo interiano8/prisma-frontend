@@ -14,31 +14,34 @@ export function taxOf(total: number, vatGroup: string): number {
   return round2(total - total / (1 + rate))
 }
 
-export function productToCartItem(p: Product): CartItem {
+export function productToCartItem(p: Product, qty = 1): CartItem {
+  const safeQty = qty > 0 ? qty : 1
+  const lineTotal = round2(p.unitPrice * safeQty)
   return {
     code: p.code,
     description: p.description,
-    qty: 1,
+    qty: safeQty,
     price: p.unitPrice,
-    tax: taxOf(p.unitPrice, p.vatGroup),
+    tax: taxOf(lineTotal, p.vatGroup),
     discount: 0,
-    total: round2(p.unitPrice),
+    total: lineTotal,
     vatGroup: p.vatGroup,
     uid: nextUid()
   }
 }
 
-export function addProductToCart(cart: CartItem[], p: Product): CartItem[] {
+export function addProductToCart(cart: CartItem[], p: Product, qty = 1): CartItem[] {
+  const safeQty = qty > 0 ? qty : 1
   const idx = cart.findIndex((i) => i.code === p.code && !i.saleId)
   if (idx >= 0) {
     const next = [...cart]
     const item = next[idx]
-    item.qty += 1
+    item.qty += safeQty
     item.total = round2(item.price * item.qty)
     item.tax = taxOf(item.total, item.vatGroup)
     return next
   }
-  return [...cart, productToCartItem(p)]
+  return [...cart, productToCartItem(p, safeQty)]
 }
 
 export function fuelToCartItem(

@@ -78,8 +78,8 @@ export function useCart(opts: UseCartOptions) {
     [cart]
   )
 
-  function addProduct(p: Product) {
-    setCart((prev) => addProductToCart(prev, p))
+  function addProduct(p: Product, qty = 1) {
+    setCart((prev) => addProductToCart(prev, p, qty))
   }
 
   function addFuel(tx: PumpTransaction, vatGroup: string, productName: string) {

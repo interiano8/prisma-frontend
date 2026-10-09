@@ -55,6 +55,17 @@ describe('pos-cart', () => {
     // otro producto con saleId no se fusiona
     const withFuel = addProductToCart([item({ code: 'G1', saleId: 5, vatGroup: 'EXENTO' })], product)
     expect(withFuel).toHaveLength(2)
+
+    // agrega con multiplicador de cantidad personalizada
+    const multi = addProductToCart([], product, 5)
+    expect(multi).toHaveLength(1)
+    expect(multi[0].qty).toBe(5)
+    expect(multi[0].total).toBe(250)
+
+    // agrega con cantidad fraccionaria (ej. balanza 1.5)
+    const frac = addProductToCart([], product, 1.5)
+    expect(frac[0].qty).toBe(1.5)
+    expect(frac[0].total).toBe(75)
   })
 
   it('fuelToCartItem construye item de combustible', () => {
