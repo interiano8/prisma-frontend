@@ -54,6 +54,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
   const [creditValidationSource, setCreditValidationSource] = useState<
     'ONLINE' | 'OFFLINE_FALLBACK' | null
   >(null)
+  const [supervisorPin, setSupervisorPin] = useState('')
   const [esTicket, setEsTicket] = useState(false)
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
     opts.onCustomerChange(c)
     setBillingType(isCred ? 'credito' : 'contado')
     setCreditValidationSource(null)
+    setSupervisorPin('')
     if (isCred) {
       setPayments([])
     }
@@ -395,6 +397,23 @@ export function useCheckout(opts: UseCheckoutOptions) {
         opts.setMessage('⚠️ Consulta de saldo deshabilitada en esta estación. Venta emitida al crédito sin validación de saldo.')
       }
       setCreditValidationSource(creditValidationSource)
+
+      if (creditValidationSource === 'OFFLINE_FALLBACK') {
+        if (!supervisorPin.trim()) {
+          opts.setMessage('Ingrese el PIN de supervisor para autorizar crédito offline.')
+          return
+        }
+        try {
+          const validAdmin = await api.validateAdmin(opts.store.storeId, supervisorPin.trim())
+          if (!validAdmin.valid) {
+            opts.setMessage('PIN o contraseña de supervisor inválida.')
+            return
+          }
+        } catch (e: any) {
+          opts.setMessage(e?.message || 'Error al validar PIN de supervisor.')
+          return
+        }
+      }
     }
     setBusy(true)
     opts.setMessage('')
@@ -582,7 +601,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
     setFormName,
     setPendingDuplicate,
     creditValidationSource,
-    setCreditValidationSource
+    setCreditValidationSource,
+    supervisorPin,
+    setSupervisorPin
   }
 }
 

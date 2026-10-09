@@ -405,5 +405,91 @@ describe('useCheckout - Manejo de error en acumulación Leal', () => {
       )
       expect(result.current.payments).toHaveLength(0)
     })
+
+    it('requiere PIN de supervisor y lo valida contra api.validateAdmin en contingencia offline', async () => {
+      const setMessage = vi.fn()
+      const createInvoiceMock = vi.spyOn(api, 'createInvoice').mockResolvedValue({
+        invoiceNo: '001-001-01-00000102',
+        cai: 'TEST-CAI',
+        startingNo: '001-001-01-00000001',
+        endingNo: '001-001-01-00000200',
+        fechaVence: '2026-12-31'
+      } as any)
+      const validateAdminMock = vi.spyOn(api, 'validateAdmin').mockResolvedValue({ valid: true })
+      // Forzamos fallback offline simulando error en checkCustomerCredit
+      vi.spyOn(api, 'checkCustomerCredit').mockRejectedValue(new Error('Network error'))
+
+      const clienteConCredito = { ...mockCreditoCustomer, creditLimit: 5000, balance: 100 }
+
+      const { result } = renderHook(() =>
+        useCheckout({
+          store: mockSession.storeConfig,
+          session: mockSession,
+          effectiveCart: mockCart,
+          totals: { total: 300, discount: 0, tax: 45, subtotal: 255 },
+          hasShift: true,
+          customer: clienteConCredito as any,
+          onCustomerChange: vi.fn(),
+          onSaleComplete: vi.fn(),
+          setMessage,
+          printTicket: vi.fn().mockResolvedValue(undefined)
+        })
+      )
+
+      act(() => {
+        result.current.openCustomerMode('credito')
+        result.current.selectCustomer(clienteConCredito as any)
+        result.current.setOrden('OC-123')
+        result.current.setKmValue('5000')
+        result.current.setChofer('Juan Perez')
+      })
+
+      act(() => {
+        result.current.addPayment(creditoMethod)
+      })
+
+      // Intento sin PIN
+      await act(async () => {
+        await result.current.checkout()
+      })
+
+      expect(setMessage).toHaveBeenCalledWith(
+        'Ingrese el PIN de supervisor para autorizar crédito offline.'
+      )
+      expect(createInvoiceMock).not.toHaveBeenCalled()
+
+      // Intento con PIN inválido
+      validateAdminMock.mockResolvedValueOnce({ valid: false })
+      act(() => {
+        result.current.setSupervisorPin('0000')
+      })
+
+      await act(async () => {
+        await result.current.checkout()
+      })
+
+      expect(setMessage).toHaveBeenCalledWith(
+        'PIN o contraseña de supervisor inválida.'
+      )
+      expect(createInvoiceMock).not.toHaveBeenCalled()
+
+      // Intento con PIN válido
+      validateAdminMock.mockResolvedValueOnce({ valid: true })
+      act(() => {
+        result.current.setSupervisorPin('1234')
+      })
+
+      await act(async () => {
+        await result.current.checkout()
+      })
+
+      expect(validateAdminMock).toHaveBeenCalledWith(mockSession.storeConfig.storeId, '1234')
+      expect(createInvoiceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isCredit: true,
+          creditValidationSource: 'OFFLINE_FALLBACK'
+        })
+      )
+    })
   })
 })

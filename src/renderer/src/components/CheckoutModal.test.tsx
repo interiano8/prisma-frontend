@@ -184,6 +184,25 @@ describe('CheckoutModal', () => {
     expect(
       screen.getByText(/El saldo de este cliente no pudo ser verificado con la casa matriz/i)
     ).toBeInTheDocument()
+    expect(screen.getByTestId('supervisor-pin-input')).toBeInTheDocument()
+  })
+
+  it('permite ingresar el PIN de supervisor cuando se requiere autorización offline', async () => {
+    const user = userEvent.setup()
+    const onSupervisorPinChange = vi.fn()
+    render(
+      <CheckoutModal
+        {...baseProps({
+          billingType: 'credito',
+          creditValidationSource: 'OFFLINE_FALLBACK',
+          supervisorPin: '',
+          onSupervisorPinChange
+        })}
+      />
+    )
+    const pinInput = screen.getByTestId('supervisor-pin-input')
+    await user.type(pinInput, '1234')
+    expect(onSupervisorPinChange).toHaveBeenCalled()
   })
 
   it('no muestra la advertencia ámbar cuando la venta a crédito fue validada en línea (ONLINE)', () => {

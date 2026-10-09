@@ -38,6 +38,7 @@ export default function DocumentsScreen() {
   const [selectedShift, setSelectedShift] = useState<any>(null)
   const [filterFactura, setFilterFactura] = useState('')
   const [filterCustomer, setFilterCustomer] = useState('')
+  const [filterCreditSource, setFilterCreditSource] = useState<'' | 'ONLINE' | 'OFFLINE_FALLBACK'>('')
   const [filterUsuario, setFilterUsuario] = useState('')
   const [filterDesde, setFilterDesde] = useState('')
   const [filterHasta, setFilterHasta] = useState('')
@@ -174,6 +175,7 @@ export default function DocumentsScreen() {
     if (filterHasta) params.fechaHasta = filterHasta
     if (filterFactura.trim()) params.factura = filterFactura.trim()
     if (filterCustomer.trim()) params.customerName = filterCustomer.trim()
+    if (filterCreditSource) params.creditValidationSource = filterCreditSource
     return params
   }
 
@@ -206,6 +208,7 @@ export default function DocumentsScreen() {
   function clearFilters() {
     setFilterFactura('')
     setFilterCustomer('')
+    setFilterCreditSource('')
     setFilterUsuario('')
     setUserText('')
     setFilterDesde('')
@@ -543,6 +546,8 @@ export default function DocumentsScreen() {
           setFilterFactura={setFilterFactura}
           filterCustomer={filterCustomer}
           setFilterCustomer={setFilterCustomer}
+          filterCreditSource={filterCreditSource}
+          setFilterCreditSource={setFilterCreditSource}
           onApplyFilters={applyFilters}
           onClearFilters={clearFilters}
           onSelectShift={loadOther}

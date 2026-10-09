@@ -29,6 +29,8 @@ interface Props {
   moneda?: string
   validarSaldoCredito?: boolean
   creditValidationSource?: 'ONLINE' | 'OFFLINE_FALLBACK' | null
+  supervisorPin?: string
+  onSupervisorPinChange?: (v: string) => void
   backendUrl: string
   onClose: () => void
   onAddPayment: (m: PaymentMethod) => void
@@ -263,8 +265,21 @@ export default function CheckoutModal(props: Props) {
                   <span>Crédito no validado en línea con Matriz</span>
                 </div>
                 <p className="mt-1 text-[11px] leading-relaxed text-amber-500/90 font-medium">
-                  Atención: El saldo de este cliente no pudo ser verificado con la casa matriz. Se está autorizando la venta utilizando el saldo local de contingencia.
+                  Atención: El saldo de este cliente no pudo ser verificado con la casa matriz. Se requiere autorización de supervisor para continuar.
                 </p>
+                <div className="mt-2.5">
+                  <label className="mb-1 block text-[11px] font-semibold text-amber-500">
+                    PIN / Clave de Supervisor <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    data-testid="supervisor-pin-input"
+                    className="input-base w-full border-amber-500/40 bg-card/80 text-foreground placeholder:text-muted/60 focus:border-amber-500"
+                    placeholder="Ingrese PIN o clave autorizada"
+                    value={props.supervisorPin ?? ''}
+                    onChange={(e) => props.onSupervisorPinChange?.(e.target.value)}
+                  />
+                </div>
               </div>
             )}
 

@@ -23,6 +23,8 @@ interface Props {
   setFilterFactura: (val: string) => void
   filterCustomer: string
   setFilterCustomer: (val: string) => void
+  filterCreditSource: '' | 'ONLINE' | 'OFFLINE_FALLBACK'
+  setFilterCreditSource: (val: '' | 'ONLINE' | 'OFFLINE_FALLBACK') => void
   onApplyFilters: () => void
   onClearFilters: () => void
   onSelectShift: (shift: any) => void
@@ -51,6 +53,8 @@ export function DocumentFilters({
   setFilterFactura,
   filterCustomer,
   setFilterCustomer,
+  filterCreditSource,
+  setFilterCreditSource,
   onApplyFilters,
   onClearFilters,
   onSelectShift,
@@ -187,6 +191,18 @@ export function DocumentFilters({
           onChange={(e) => setFilterCustomer(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApplyFilters()}
         />
+        <div>
+          <label className="label-base">Origen de crédito</label>
+          <select
+            className="input-base w-full text-xs"
+            value={filterCreditSource}
+            onChange={(e) => setFilterCreditSource(e.target.value as any)}
+          >
+            <option value="">Todos los documentos</option>
+            <option value="ONLINE">🌐 Crédito validado en línea</option>
+            <option value="OFFLINE_FALLBACK">📴 Crédito offline (Contingencia)</option>
+          </select>
+        </div>
         <div className="flex gap-2">
           <button
             className="btn-press flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover"
