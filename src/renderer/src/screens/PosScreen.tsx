@@ -126,6 +126,7 @@ export default function PosScreen() {
     setCustomerModalOpen,
     esTicket,
     setEsTicket,
+    creditValidationSource,
     checkout
   } = checkoutApi
 
@@ -409,6 +410,7 @@ export default function PosScreen() {
         busy={busy}
         moneda={store.moneda}
         validarSaldoCredito={store?.validarSaldoCredito}
+        creditValidationSource={creditValidationSource}
         backendUrl={backendUrl}
         onClose={() => setCheckoutOpen(false)}
         onAddPayment={addPayment}

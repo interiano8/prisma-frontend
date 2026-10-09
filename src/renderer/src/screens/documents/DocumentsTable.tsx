@@ -1,4 +1,4 @@
-import { Printer } from 'lucide-react'
+import { Printer, Globe, WifiOff } from 'lucide-react'
 import { DocRow, docTypeClass, docTypeLabel, fmtDate, fmtMoneyStore } from './types'
 
 interface Props {
@@ -83,6 +83,23 @@ export function DocumentsTable({
                     >
                       {r.EsCredito ? 'Crédito' : 'Contado'}
                     </span>
+                    {r.EsCredito && (r.origenValidacionCredito || r.creditValidationSource) && (
+                      (r.origenValidacionCredito === 'ONLINE' || r.creditValidationSource === 'ONLINE') ? (
+                        <span
+                          title="Crédito validado en línea con Casa Matriz"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-1.5 py-0.5 text-[9px] font-semibold text-accent"
+                        >
+                          <Globe size={10} /> En línea
+                        </span>
+                      ) : (
+                        <span
+                          title="Saldo no validado en Matriz (Contingencia offline)"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[9px] font-semibold text-amber-500"
+                        >
+                          <WifiOff size={10} /> Offline
+                        </span>
+                      )
+                    )}
                     {r.TieneLeal && (
                       <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
                         Leal

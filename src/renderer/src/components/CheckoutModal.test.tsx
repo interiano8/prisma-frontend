@@ -169,4 +169,45 @@ describe('CheckoutModal', () => {
     render(<CheckoutModal {...baseProps({ payments: [usdPayment as any], change: 50 })} />)
     expect(screen.getByText(/\$2.00/)).toBeInTheDocument()
   })
+
+  it('muestra la advertencia ámbar cuando es venta a crédito con contingencia offline (OFFLINE_FALLBACK)', () => {
+    render(
+      <CheckoutModal
+        {...baseProps({
+          billingType: 'credito',
+          creditValidationSource: 'OFFLINE_FALLBACK'
+        })}
+      />
+    )
+    expect(screen.getByTestId('offline-credit-warning')).toBeInTheDocument()
+    expect(screen.getByText(/Crédito no validado en línea con Matriz/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/El saldo de este cliente no pudo ser verificado con la casa matriz/i)
+    ).toBeInTheDocument()
+  })
+
+  it('no muestra la advertencia ámbar cuando la venta a crédito fue validada en línea (ONLINE)', () => {
+    render(
+      <CheckoutModal
+        {...baseProps({
+          billingType: 'credito',
+          creditValidationSource: 'ONLINE'
+        })}
+      />
+    )
+    expect(screen.queryByTestId('offline-credit-warning')).toBeNull()
+    expect(screen.queryByText(/Crédito no validado en línea con Matriz/i)).toBeNull()
+  })
+
+  it('no muestra la advertencia si la venta es de contado aunque el source sea OFFLINE_FALLBACK', () => {
+    render(
+      <CheckoutModal
+        {...baseProps({
+          billingType: 'contado',
+          creditValidationSource: 'OFFLINE_FALLBACK'
+        })}
+      />
+    )
+    expect(screen.queryByTestId('offline-credit-warning')).toBeNull()
+  })
 })

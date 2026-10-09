@@ -43,6 +43,8 @@ export interface DocRow {
   FechaVence?: string | null
   Turno?: string | null
   TurnoFecha?: string | null
+  origenValidacionCredito?: 'ONLINE' | 'OFFLINE_FALLBACK' | string | null
+  creditValidationSource?: 'ONLINE' | 'OFFLINE_FALLBACK' | string | null
 }
 
 export function fmtMoney(n: number | string | null | undefined): string {
@@ -130,6 +132,16 @@ export function buildDetailGroups(d: DocRow, moneda?: string, shiftDate?: string
   push(cliente, 'Correo', d['E-mail'])
   push(cliente, 'Tarjeta cliente', d['Customer Card No_'])
   push(cliente, 'Tarjeta puntos', d['Points Card No_'])
+  if (d.EsCredito) {
+    const src = d.origenValidacionCredito || d.creditValidationSource
+    const labelValidacion =
+      src === 'ONLINE'
+        ? '🌐 Validado en línea con Matriz'
+        : src === 'OFFLINE_FALLBACK'
+          ? '📴 No validado en Matriz (Contingencia offline)'
+          : 'No registrado'
+    push(cliente, 'Validación de crédito', labelValidacion)
+  }
 
   const otros: DetailItem[] = []
   push(otros, 'Placa', d.Plate)

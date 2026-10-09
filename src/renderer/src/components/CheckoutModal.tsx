@@ -6,7 +6,7 @@ import {
   groupPaymentMethods,
   paymentImage
 } from '../lib/pos-logic'
-import { X } from 'lucide-react'
+import { X, WifiOff, AlertTriangle } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -28,6 +28,7 @@ interface Props {
   busy: boolean
   moneda?: string
   validarSaldoCredito?: boolean
+  creditValidationSource?: 'ONLINE' | 'OFFLINE_FALLBACK' | null
   backendUrl: string
   onClose: () => void
   onAddPayment: (m: PaymentMethod) => void
@@ -251,6 +252,21 @@ export default function CheckoutModal(props: Props) {
                 />
               </div>
             </div>
+
+            {props.billingType === 'credito' && props.creditValidationSource === 'OFFLINE_FALLBACK' && (
+              <div
+                data-testid="offline-credit-warning"
+                className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-500 animate-in fade-in-0"
+              >
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <WifiOff size={16} className="shrink-0 text-amber-500" />
+                  <span>Crédito no validado en línea con Matriz</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-amber-500/90 font-medium">
+                  Atención: El saldo de este cliente no pudo ser verificado con la casa matriz. Se está autorizando la venta utilizando el saldo local de contingencia.
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button

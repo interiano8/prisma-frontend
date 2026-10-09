@@ -51,6 +51,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
   const [billingType, setBillingType] = useState<'contado' | 'credito'>(
     opts.customer?.billingType === 0 ? 'credito' : 'contado'
   )
+  const [creditValidationSource, setCreditValidationSource] = useState<
+    'ONLINE' | 'OFFLINE_FALLBACK' | null
+  >(null)
   const [esTicket, setEsTicket] = useState(false)
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
     const isCred = mode === 'credito' || c.billingType === 0
     opts.onCustomerChange(c)
     setBillingType(isCred ? 'credito' : 'contado')
+    setCreditValidationSource(null)
     if (isCred) {
       setPayments([])
     }
@@ -390,6 +394,7 @@ export function useCheckout(opts: UseCheckoutOptions) {
       } else {
         opts.setMessage('⚠️ Consulta de saldo deshabilitada en esta estación. Venta emitida al crédito sin validación de saldo.')
       }
+      setCreditValidationSource(creditValidationSource)
     }
     setBusy(true)
     opts.setMessage('')
@@ -575,7 +580,9 @@ export function useCheckout(opts: UseCheckoutOptions) {
     setCreateCustomerOpen,
     setFormRtn,
     setFormName,
-    setPendingDuplicate
+    setPendingDuplicate,
+    creditValidationSource,
+    setCreditValidationSource
   }
 }
 

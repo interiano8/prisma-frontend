@@ -1,4 +1,4 @@
-import { Printer, X } from 'lucide-react'
+import { Printer, X, Globe, WifiOff } from 'lucide-react'
 import { DocRow, docTypeClass, docTypeLabel, fmtDate, fmtMoney, fmtMoneyStore, buildDetailGroups } from './types'
 import { lineTaxAmount, lineTaxPct, taxTypeLabel } from '../../lib/document-taxes'
 import { paymentMethodName } from '../../lib/pos-logic'
@@ -67,6 +67,23 @@ export function DocumentDetailModal({
                 >
                   {selected.EsCredito ? 'Crédito' : 'Contado'}
                 </span>
+                {selected.EsCredito && (selected.origenValidacionCredito || selected.creditValidationSource) && (
+                  (selected.origenValidacionCredito === 'ONLINE' || selected.creditValidationSource === 'ONLINE') ? (
+                    <span
+                      title="Crédito validado en línea con Casa Matriz"
+                      className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent"
+                    >
+                      <Globe size={11} /> Validado en línea
+                    </span>
+                  ) : (
+                    <span
+                      title="Saldo no validado en línea con Matriz. Emitido bajo contingencia offline."
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-semibold text-amber-500"
+                    >
+                      <WifiOff size={11} /> No validado en Matriz (Offline)
+                    </span>
+                  )
+                )}
                 {selected.TieneLeal && (
                   <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
                     Leal

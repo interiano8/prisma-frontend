@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { api, getBackendUrl } from '../api/client'
 import { useApp } from '../store'
 import { buildEncabezado } from '../lib/documento-renderer'
-import { Search, Printer, SlidersHorizontal } from 'lucide-react'
+import { Search, Printer, SlidersHorizontal, Globe, WifiOff } from 'lucide-react'
 
 export default function ReprintScreen() {
   const { session } = useApp()
@@ -172,7 +172,26 @@ export default function ReprintScreen() {
               className="btn-press flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left hover:border-accent/40"
               onClick={() => loadDoc(r)}
             >
-              <span className="font-mono text-sm tabular-nums">{r['POS Sales Doc_ No_']}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-mono text-sm tabular-nums">{r['POS Sales Doc_ No_']}</span>
+                {r.EsCredito && (r.origenValidacionCredito || r.creditValidationSource) && (
+                  (r.origenValidacionCredito === 'ONLINE' || r.creditValidationSource === 'ONLINE') ? (
+                    <span
+                      title="Crédito validado en línea"
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent/20 border border-accent/40 px-1.5 py-0.2 text-[9px] font-semibold text-accent"
+                    >
+                      <Globe size={10} />
+                    </span>
+                  ) : (
+                    <span
+                      title="Crédito no validado en línea (Offline)"
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.2 text-[9px] font-semibold text-amber-500"
+                    >
+                      <WifiOff size={10} />
+                    </span>
+                  )
+                )}
+              </div>
               <span className="flex-1 truncate text-sm text-muted">{r['Cust_ Name']}</span>
               <span className="font-mono text-sm tabular-nums">{Number(r.Amount || 0).toFixed(2)}</span>
             </button>
@@ -182,7 +201,26 @@ export default function ReprintScreen() {
         <div className="card-surface p-5">
           {selected ? (
             <>
-              <h3 className="font-mono text-base font-semibold tabular-nums">{selected['POS Sales Doc_ No_']}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-mono text-base font-semibold tabular-nums">{selected['POS Sales Doc_ No_']}</h3>
+                {selected.EsCredito && (selected.origenValidacionCredito || selected.creditValidationSource) && (
+                  (selected.origenValidacionCredito === 'ONLINE' || selected.creditValidationSource === 'ONLINE') ? (
+                    <span
+                      title="Crédito validado en línea con Casa Matriz"
+                      className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent"
+                    >
+                      <Globe size={11} /> Validado en línea
+                    </span>
+                  ) : (
+                    <span
+                      title="Saldo no validado en línea con Matriz (Contingencia offline)"
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-semibold text-amber-500"
+                    >
+                      <WifiOff size={11} /> No validado en Matriz (Offline)
+                    </span>
+                  )
+                )}
+              </div>
               <div className="mt-1 text-sm text-muted">
                 {selected['Cust_ Name']} · Total{' '}
                 <span className="font-mono tabular-nums">{Number(selected.Amount || 0).toFixed(2)}</span>
