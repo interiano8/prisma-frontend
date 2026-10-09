@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import type { LoginResponse, StoreConfig, PaymentMethod } from './api/types'
-import { getBackendUrl, setBackendUrl as persistBackendUrl, clearSessionToken } from './api/client'
+import { api, getBackendUrl, setBackendUrl as persistBackendUrl, clearSessionToken } from './api/client'
 import { getStoredTheme, applyTheme, getStoredAccent, applyAccent, Theme } from './theme'
 import { setServerTimezone } from './lib/server-tz'
 import type { PrintTicketInput } from './printing'
-import { printSaleTicket } from './printing'
+import { printSaleTicket, printExistingDocument } from './printing'
 import { errMsg } from './lib/pos-logic'
 
 export type View =
@@ -118,22 +118,65 @@ export function AppProvider({
   }, [])
 
   const reprintLastTicket = useCallback(async (): Promise<boolean> => {
-    if (!lastPrintedTicket) {
+    if (lastPrintedTicket) {
+      try {
+        await printSaleTicket({
+          ...lastPrintedTicket,
+          isReprint: true
+        })
+        showToast(`Comprobante ${lastPrintedTicket.result.invoiceNo} reimpreso con éxito.`)
+        return true
+      } catch (e: any) {
+        showToast(`Error al reimprimir: ${errMsg(e)}`)
+        return false
+      }
+    }
+
+    if (!session) {
       showToast('No hay comprobante previo disponible para reimprimir.')
       return false
     }
+
     try {
-      await printSaleTicket({
-        ...lastPrintedTicket,
-        isReprint: true
+      const res = await api.searchInvoicesPaginated({
+        storeId: session.storeConfig.storeId,
+        posNo: session.storeConfig.posNumber,
+        avanzado: 'false',
+        page: '1',
+        pageSize: '1'
       })
-      showToast(`Comprobante ${lastPrintedTicket.result.invoiceNo} reimpreso con éxito.`)
+
+      const lastDoc = res.data?.[0]
+      if (!lastDoc) {
+        showToast('No hay comprobante previo disponible para reimprimir.')
+        return false
+      }
+
+      const txId = lastDoc['POS Transaction ID']
+      const [lines, payments, leal, campanas] = await Promise.all([
+        txId ? api.invoiceLines(txId).catch(() => []) : [],
+        txId ? api.invoicePayments(txId).catch(() => []) : [],
+        txId ? api.invoiceLealMessage(txId).catch(() => ({ lealReprintMessage: '' })) : { lealReprintMessage: '' },
+        txId ? api.invoiceCampanas(txId).catch(() => []) : []
+      ])
+
+      await printExistingDocument({
+        session,
+        row: lastDoc,
+        lines,
+        payments,
+        lealMessage: leal?.lealReprintMessage,
+        campanas
+      })
+
+      const docNo = lastDoc['POS Sales Doc_ No_'] || 'último comprobante'
+      showToast(`Comprobante ${docNo} reimpreso con éxito.`)
       return true
     } catch (e: any) {
       showToast(`Error al reimprimir: ${errMsg(e)}`)
       return false
     }
-  }, [lastPrintedTicket, showToast])
+  }, [lastPrintedTicket, session, showToast])
 
   const login = useCallback((s: LoginResponse) => {
     setServerTimezone(s.storeConfig?.serverTimezone)

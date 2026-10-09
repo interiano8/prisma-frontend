@@ -3,7 +3,7 @@ import { api } from '../api/client'
 import type { CartItem, Customer, Dispenser, PumpTransaction } from '../api/types'
 import { useApp } from '../store'
 import { printSaleTicket } from '../printing'
-import { X, CheckCircle2 } from 'lucide-react'
+import { X, CheckCircle2, Printer } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ProductModal from '../components/ProductModal'
 import MediaPlayer from '../components/MediaPlayer'
@@ -22,7 +22,7 @@ import { usePumpSocket, type PumpSocketStatus, type PumpStatusMessage } from '..
 import { fmtValue, applyWsState, mergeWsStates, filterMyPumps } from '../lib/pos-logic'
 
 export default function PosScreen() {
-  const { session, setView, paymentMethods, backendUrl, setLastPrintedTicket } = useApp()
+  const { session, setView, paymentMethods, backendUrl, setLastPrintedTicket, reprintLastTicket } = useApp()
   const store = session!.storeConfig
   const fidelizacionLabel = store.nombreBotonFidelizacion || 'Fidelización'
   const fmt = (n: number | string) => fmtValue(n, store.moneda)
@@ -502,12 +502,21 @@ export default function PosScreen() {
                 </div>
               </div>
             )}
-            <button
-              className="btn-press mt-1 w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
-              onClick={() => setSaleDone(null)}
-            >
-              Cerrar
-            </button>
+            <div className="mt-2 flex w-full flex-col gap-2">
+              <button
+                className="btn-press flex w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 py-2.5 text-sm font-semibold text-accent hover:bg-accent/20"
+                onClick={() => void reprintLastTicket()}
+              >
+                <Printer size={16} />
+                Reimprimir ticket
+              </button>
+              <button
+                className="btn-press w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
+                onClick={() => setSaleDone(null)}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

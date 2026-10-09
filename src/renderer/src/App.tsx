@@ -117,7 +117,7 @@ export default function App() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'F11') {
+      if (e.key === 'F11' || ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P'))) {
         e.preventDefault()
         void reprintLastTicket()
       }
@@ -173,7 +173,7 @@ export default function App() {
           <button
             onClick={() => void reprintLastTicket()}
             className="btn-press flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-primary"
-            title="Reimprimir último comprobante (F11)"
+            title="Reimprimir último comprobante (Ctrl+P / F11)"
           >
             <Printer size={14} className={lastPrintedTicket ? 'text-accent' : ''} />
             <span>Reimprimir</span>

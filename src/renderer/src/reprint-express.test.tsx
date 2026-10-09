@@ -192,4 +192,80 @@ describe('Reimpresión Exprés', () => {
     expect(printedTicket.total).toBe(300)
     expect(onSaleComplete).toHaveBeenCalledWith('001-001-01-00000099', 0)
   })
+
+  it('reimprime desde el backend si lastPrintedTicket es null pero hay ventas en la BD', async () => {
+    const { api } = await import('./api/client')
+
+    const mockDoc = {
+      'POS Sales Doc_ No_': '001-001-01-00000555',
+      'POS Transaction ID': 'TX-555',
+      'Cust_ Name': 'Cliente Reciente',
+      Amount: 450,
+      Change: 50,
+      'Sale Date Time': '2026-09-25T09:00:00Z',
+      'POS Sales Doc_ Type': 1
+    }
+
+    vi.spyOn(api, 'searchInvoicesPaginated').mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 1,
+      data: [mockDoc]
+    } as any)
+
+    vi.spyOn(api, 'invoiceLines').mockResolvedValue([
+      {
+        Description: 'DIESEL',
+        Quantity: 15,
+        'Unit Price Incl_ VAT': 30,
+        'Amount Including VAT': 450,
+        'Line Discount Amount': 0,
+        VAT_Amount: 0
+      }
+    ] as any)
+
+    vi.spyOn(api, 'invoicePayments').mockResolvedValue([
+      {
+        Description: 'EFECTIVO',
+        Amount: 500,
+        MontoIngresado: 500
+      }
+    ] as any)
+
+    vi.spyOn(api, 'invoiceLealMessage').mockResolvedValue({ lealReprintMessage: '' } as any)
+    vi.spyOn(api, 'invoiceCampanas').mockResolvedValue([] as any)
+
+    function SessionConsumer() {
+      const { login, reprintLastTicket, toast } = useApp()
+      return (
+        <div>
+          <button onClick={() => login(mockSession)}>Iniciar Sesion</button>
+          <button onClick={() => void reprintLastTicket()}>Reimprimir Backend</button>
+          <div data-testid="toast-session">{toast}</div>
+        </div>
+      )
+    }
+
+    render(
+      <AppProvider>
+        <SessionConsumer />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Iniciar Sesion'))
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Reimprimir Backend'))
+    })
+
+    expect(window.api.printTicket).toHaveBeenCalledTimes(1)
+    const callArgs = (window.api.printTicket as any).mock.calls[0]
+    expect(callArgs[1]).toBe('COM1')
+    const payload = callArgs[2]
+    expect(payload.lines.some((l: any) => l.text.includes('001-001-01-00000555'))).toBe(true)
+    expect(screen.getByTestId('toast-session').textContent).toContain('001-001-01-00000555 reimpreso con éxito')
+  })
 })
+
