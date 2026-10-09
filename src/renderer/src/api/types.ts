@@ -291,4 +291,29 @@ export interface CreateParkedSalePayload {
   total: number
 }
 
+export interface ProductStockCheck {
+  productCode: string
+  stock: number
+  minStock: number
+  isAvailable: boolean
+  source: 'HQ' | 'LOCAL_OFFLINE'
+  updatedAt: string | null
+}
+
+export interface NetworkStockItem {
+  storeCode: string
+  storeName: string
+  stock: number
+  minStock: number
+  isAvailable: boolean
+  updatedAt: string | null
+}
+
+export interface NetworkStockResult {
+  productCode: string
+  items: NetworkStockItem[]
+  totalNetworkStock: number
+  source: 'HQ' | 'LOCAL_OFFLINE'
+}
+
 

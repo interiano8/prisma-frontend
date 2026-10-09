@@ -10,7 +10,9 @@ import type {
   Product,
   HealthCheckResult,
   ParkedSale,
-  CreateParkedSalePayload
+  CreateParkedSalePayload,
+  ProductStockCheck,
+  NetworkStockResult
 } from './types'
 
 const STORAGE_KEY = 'prisma:backend-url'
@@ -107,6 +109,12 @@ export const api = {
 
   productByCode: (code: string) =>
     request<Product | null>(`/api/products/${encodeURIComponent(code)}`),
+
+  checkStock: (productCode: string) =>
+    request<ProductStockCheck>(`/api/inventory/${encodeURIComponent(productCode)}/check`),
+
+  networkStock: (productCode: string) =>
+    request<NetworkStockResult>(`/api/inventory/${encodeURIComponent(productCode)}/network`),
 
   // Media
   mediaList: () => request<MediaFile[]>('/api/media/list'),

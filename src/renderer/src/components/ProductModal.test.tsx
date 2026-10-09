@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Product } from '../api/types'
 import ProductModal from './ProductModal'
@@ -8,7 +8,9 @@ vi.mock('../api/client', () => ({
   api: {
     products: vi.fn(),
     productByBarcode: vi.fn(),
-    productByCode: vi.fn()
+    productByCode: vi.fn(),
+    checkStock: vi.fn(),
+    networkStock: vi.fn()
   },
   getBackendUrl: () => 'http://localhost:5012'
 }))
@@ -131,5 +133,50 @@ describe('ProductModal', () => {
     await user.type(input, '123{Enter}')
     expect(await screen.findByText(/se agregan desde el controlador/)).toBeInTheDocument()
     expect(onAdd).not.toHaveBeenCalled()
+  })
+
+  it('muestra badge de stock y permite consultar la disponibilidad en red de sucursales', async () => {
+    const user = userEvent.setup()
+    ;(api.checkStock as any).mockResolvedValue({
+      productCode: '0001',
+      stock: 15,
+      minStock: 2,
+      isAvailable: true,
+      source: 'HQ',
+      updatedAt: '2026-10-09T12:00:00Z'
+    })
+    ;(api.networkStock as any).mockResolvedValue({
+      productCode: '0001',
+      items: [
+        { storeCode: '001', storeName: 'Principal', stock: 15, minStock: 2, isAvailable: true },
+        { storeCode: '002', storeName: 'Norte', stock: 8, minStock: 1, isAvailable: true }
+      ],
+      totalNetworkStock: 23,
+      source: 'HQ'
+    })
+
+    setup()
+    expect(await screen.findByText('SF23')).toBeInTheDocument()
+
+    // Badge de stock
+    const stockBadges = await screen.findAllByText(/Stock: 15/)
+    expect(stockBadges.length).toBeGreaterThan(0)
+    expect(screen.getAllByText('(HQ)').length).toBeGreaterThan(0)
+
+    // Clic en botón "Red" para consultar otras sucursales
+    const redBtn = screen.getByTestId('network-stock-0001')
+    await user.click(redBtn)
+
+    // Diálogo de stock en red
+    expect(await screen.findByText('Stock en Red de Sucursales')).toBeInTheDocument()
+    expect(await screen.findByText('Principal')).toBeInTheDocument()
+    expect(await screen.findByText('Norte')).toBeInTheDocument()
+    expect(screen.getByText('23')).toBeInTheDocument()
+    expect(screen.getByText('Matriz Central (En vivo)')).toBeInTheDocument()
+
+    // Cerrar modal
+    const closeBtn = screen.getByRole('button', { name: 'Cerrar' })
+    await user.click(closeBtn)
+    expect(screen.queryByText('Stock en Red de Sucursales')).not.toBeInTheDocument()
   })
 })
