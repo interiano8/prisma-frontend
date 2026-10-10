@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { Product, NetworkStockResult } from '../api/types'
-import { Barcode, Package, CheckCircle2, X, Building2 } from 'lucide-react'
+import { Barcode, Package, CheckCircle2, X, Building2, ArrowRightLeft } from 'lucide-react'
 
 function taxLabel(vatGroup: string): string {
   const g = (vatGroup || '').toUpperCase()
@@ -47,6 +47,10 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
   const [selectedNetworkProduct, setSelectedNetworkProduct] = useState<Product | null>(null)
   const [networkData, setNetworkData] = useState<NetworkStockResult | null>(null)
   const [loadingNetwork, setLoadingNetwork] = useState(false)
+  const [transferStore, setTransferStore] = useState<string | null>(null)
+  const [transferQty, setTransferQty] = useState<number>(1)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferMsg, setTransferMsg] = useState<{ text: string; error?: boolean } | null>(null)
   const barcodeRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -59,6 +63,9 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
     setStockMap({})
     setSelectedNetworkProduct(null)
     setNetworkData(null)
+    setTransferStore(null)
+    setTransferQty(1)
+    setTransferMsg(null)
     const load = category ? api.products(category) : api.products()
     load
       .then((list) => {
@@ -139,6 +146,9 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
     setSelectedNetworkProduct(p)
     setLoadingNetwork(true)
     setNetworkData(null)
+    setTransferStore(null)
+    setTransferQty(1)
+    setTransferMsg(null)
     try {
       if (api.networkStock) {
         const res = await api.networkStock(p.code)
@@ -148,6 +158,34 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
       // ignore
     } finally {
       setLoadingNetwork(false)
+    }
+  }
+
+  async function handleRequestTransfer(fromStoreCode: string) {
+    if (!selectedNetworkProduct || transferQty <= 0) return
+    setTransferLoading(true)
+    setTransferMsg(null)
+    try {
+      const res = await api.requestTransfer({
+        fromStoreCode,
+        requestedBy: 'CAJERO',
+        items: [
+          {
+            productCode: selectedNetworkProduct.code,
+            productName: selectedNetworkProduct.description,
+            quantity: transferQty,
+          },
+        ],
+      })
+      setTransferMsg({
+        text: `Solicitud ${res?.transferNo || ''} registrada con éxito. Estado: Solicitado.`,
+      })
+      setTransferStore(null)
+      setTransferQty(1)
+    } catch (err: any) {
+      setTransferMsg({ text: err.message || 'Error al solicitar traspaso', error: true })
+    } finally {
+      setTransferLoading(false)
     }
   }
 
@@ -340,6 +378,18 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
               </p>
             </div>
 
+            {transferMsg && (
+              <div
+                className={`mb-3 rounded-lg border p-2 text-xs ${
+                  transferMsg.error
+                    ? 'border-danger/40 bg-danger/10 text-danger'
+                    : 'border-success/40 bg-success/10 text-success'
+                }`}
+              >
+                {transferMsg.text}
+              </div>
+            )}
+
             <div className="min-h-0 flex-1 overflow-auto">
               {loadingNetwork ? (
                 <p className="py-6 text-center text-sm text-muted">Consultando disponibilidad en red…</p>
@@ -354,23 +404,77 @@ export default function ProductModal({ open, onClose, onAdd, moneda, category, c
                   {networkData.items.map((item) => (
                     <div
                       key={item.storeCode}
-                      className="flex items-center justify-between rounded-lg border border-border/40 bg-surface/50 p-2.5 text-xs"
+                      className="rounded-lg border border-border/40 bg-surface/50 p-2.5 text-xs"
                     >
-                      <div>
-                        <span className="font-semibold text-foreground">{item.storeName}</span>
-                        <span className="ml-1.5 font-mono text-[11px] text-muted">({item.storeCode})</span>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-semibold text-foreground">{item.storeName}</span>
+                          <span className="ml-1.5 font-mono text-[11px] text-muted">({item.storeCode})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-mono font-semibold tabular-nums px-2 py-0.5 rounded ${
+                              item.stock > 0
+                                ? 'bg-success/15 text-success'
+                                : 'bg-danger/15 text-danger'
+                            }`}
+                          >
+                            {item.stock}
+                          </span>
+                          {item.stock > 0 && (
+                            <button
+                              type="button"
+                              className="btn-press inline-flex items-center gap-1 rounded bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent/25"
+                              onClick={() => {
+                                if (transferStore === item.storeCode) {
+                                  setTransferStore(null)
+                                } else {
+                                  setTransferStore(item.storeCode)
+                                  setTransferQty(1)
+                                }
+                              }}
+                            >
+                              <ArrowRightLeft size={11} />
+                              Traspaso
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`font-mono font-semibold tabular-nums px-2 py-0.5 rounded ${
-                            item.stock > 0
-                              ? 'bg-success/15 text-success'
-                              : 'bg-danger/15 text-danger'
-                          }`}
-                        >
-                          {item.stock}
-                        </span>
-                      </div>
+
+                      {transferStore === item.storeCode && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded bg-surface-hover/80 p-2 border border-accent/20">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-muted">Cantidad a solicitar:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={item.stock}
+                              className="input-base w-16 py-0.5 px-1.5 text-xs text-center"
+                              value={transferQty}
+                              onChange={(e) =>
+                                setTransferQty(Math.max(1, Math.min(item.stock, Number(e.target.value) || 1)))
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="btn-press rounded bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+                              disabled={transferLoading || transferQty <= 0}
+                              onClick={() => handleRequestTransfer(item.storeCode)}
+                            >
+                              {transferLoading ? 'Enviando…' : 'Solicitar'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-press rounded bg-surface px-2 py-1 text-[11px] text-muted hover:text-foreground"
+                              onClick={() => setTransferStore(null)}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
 

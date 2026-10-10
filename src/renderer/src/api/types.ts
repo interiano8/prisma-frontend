@@ -316,4 +316,35 @@ export interface NetworkStockResult {
   source: 'HQ' | 'LOCAL_OFFLINE'
 }
 
+export interface StockTransferRequestPayload {
+  fromStoreCode: string
+  toStoreCode?: string
+  requestedBy?: string
+  notes?: string
+  items: {
+    productCode: string
+    productName?: string
+    quantity: number
+  }[]
+}
+
+export interface StockTransfer {
+  id: string
+  transferNo: string
+  fromStoreCode: string
+  toStoreCode: string
+  status: 'REQUESTED' | 'APPROVED' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED'
+  requestedBy: string
+  notes?: string
+  createdAt: string
+  items: Array<{
+    id: string
+    productCode: string
+    productName?: string
+    quantityRequested: number
+    quantityDispatched?: number
+    quantityReceived?: number
+  }>
+}
+
 

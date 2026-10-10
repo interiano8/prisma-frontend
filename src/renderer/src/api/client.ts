@@ -116,6 +116,20 @@ export const api = {
   networkStock: (productCode: string) =>
     request<NetworkStockResult>(`/api/inventory/${encodeURIComponent(productCode)}/network`),
 
+  requestTransfer: (body: {
+    fromStoreCode: string
+    toStoreCode?: string
+    requestedBy?: string
+    notes?: string
+    items: { productCode: string; productName?: string; quantity: number }[]
+  }) =>
+    request<any>('/api/transfers/request', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+
+  myStoreTransfers: () => request<any[]>('/api/transfers/my-store'),
+
   // Media
   mediaList: () => request<MediaFile[]>('/api/media/list'),
 

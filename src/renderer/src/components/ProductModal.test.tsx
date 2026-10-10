@@ -10,7 +10,8 @@ vi.mock('../api/client', () => ({
     productByBarcode: vi.fn(),
     productByCode: vi.fn(),
     checkStock: vi.fn(),
-    networkStock: vi.fn()
+    networkStock: vi.fn(),
+    requestTransfer: vi.fn()
   },
   getBackendUrl: () => 'http://localhost:5012'
 }))
@@ -178,5 +179,63 @@ describe('ProductModal', () => {
     const closeBtn = screen.getByRole('button', { name: 'Cerrar' })
     await user.click(closeBtn)
     expect(screen.queryByText('Stock en Red de Sucursales')).not.toBeInTheDocument()
+  })
+
+  it('permite solicitar traspaso de inventario a otra sucursal', async () => {
+    const user = userEvent.setup()
+    ;(api.checkStock as any).mockResolvedValue({
+      productCode: '0001',
+      stock: 1,
+      minStock: 2,
+      isAvailable: true,
+      source: 'HQ'
+    })
+    ;(api.networkStock as any).mockResolvedValue({
+      productCode: '0001',
+      items: [
+        { storeCode: '001', storeName: 'Principal', stock: 1, minStock: 2, isAvailable: true, updatedAt: null },
+        { storeCode: '002', storeName: 'Norte', stock: 15, minStock: 3, isAvailable: true, updatedAt: null }
+      ],
+      totalNetworkStock: 16,
+      source: 'HQ'
+    })
+    ;(api.requestTransfer as any).mockResolvedValue({
+      id: 'trf-123',
+      transferNo: 'TRF-20261010-1001',
+      status: 'REQUESTED'
+    })
+
+    setup()
+
+    const netBtn = await screen.findByTestId('network-stock-0001')
+    await user.click(netBtn)
+
+    expect(await screen.findByText('Stock en Red de Sucursales')).toBeInTheDocument()
+
+    // Botón de traspaso para sucursal Norte
+    const transferBtns = screen.getAllByRole('button', { name: /Traspaso/i })
+    expect(transferBtns.length).toBeGreaterThan(0)
+    await user.click(transferBtns[0])
+
+    // Debe mostrar selector de cantidad y botón Solicitar
+    expect(screen.getByText('Cantidad a solicitar:')).toBeInTheDocument()
+    const submitBtn = screen.getByRole('button', { name: 'Solicitar' })
+    await user.click(submitBtn)
+
+    // Debe llamar a api.requestTransfer
+    await waitFor(() => {
+      expect(api.requestTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromStoreCode: '001',
+          requestedBy: 'CAJERO',
+          items: expect.arrayContaining([
+            expect.objectContaining({ productCode: '0001', quantity: 1 })
+          ])
+        })
+      )
+    })
+
+    // Debe mostrar mensaje de éxito
+    expect(await screen.findByText(/TRF-20261010-1001 registrada con éxito/i)).toBeInTheDocument()
   })
 })
