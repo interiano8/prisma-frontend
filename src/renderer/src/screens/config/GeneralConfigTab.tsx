@@ -31,7 +31,7 @@ export function GeneralConfigTab({
   const [tecladoLoading, setTecladoLoading] = useState(false)
   const [declararMontosIniciales, setDeclararMontosIniciales] = useState(store.declararMontosIniciales ?? false)
   const [montosInicialesLoading, setMontosInicialesLoading] = useState(false)
-  const [moneda, setMoneda] = useState(store.moneda ?? 'L.')
+  const [moneda, setMoneda] = useState(store.moneda ?? 'L')
   const [monedaLoading, setMonedaLoading] = useState(false)
   const [carpetaMultimedia, setCarpetaMultimedia] = useState(store.carpetaMultimedia ?? '')
   const [carpetaLoading, setCarpetaLoading] = useState(false)
@@ -167,7 +167,7 @@ export function GeneralConfigTab({
   }
 
   async function saveMoneda() {
-    const value = moneda.trim() || 'L.'
+    const value = moneda.trim() || 'L'
     setMonedaLoading(true)
     try {
       await api.updateStoreConfig(store.storeId, { moneda: value })

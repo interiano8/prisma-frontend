@@ -30,6 +30,7 @@ import type { Dispenser, PaymentMethod, PumpTransaction } from '../api/types'
 describe('pos-logic', () => {
   it('fmtValue formatea con moneda y 2 decimales', () => {
     expect(fmtValue(1234.5)).toBe('1,234.50')
+    expect(fmtValue(103, 'L')).toBe('L 103.00')
     expect(fmtValue(103, 'L.')).toBe('L. 103.00')
     expect(fmtValue('57.5')).toBe('57.50')
   })

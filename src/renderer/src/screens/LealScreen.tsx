@@ -46,7 +46,7 @@ function fmtFechaISO(v: string): string {
 
 export default function LealScreen() {
   const { session } = useApp()
-  const moneda = session?.storeConfig?.moneda || 'L.'
+  const moneda = session?.storeConfig?.moneda || 'L'
   const fmtL = (n: number) =>
     `${moneda} ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
